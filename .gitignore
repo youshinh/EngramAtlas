@@ -34,3 +34,6 @@ scratch/
 *.txt
 specs/
 
+# Antigravity IDE / agent configuration (internal)
+.antigravity/
+
