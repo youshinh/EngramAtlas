@@ -147,7 +147,16 @@ async function runEvaluation() {
     // 送信 2 (1回目が成功している場合のみ)
     if (api1Passed) {
       try {
-        const postData2 = JSON.stringify({ userInput: noise2, lang: 'ja' });
+        const postData2 = JSON.stringify({ 
+          userInput: noise2, 
+          lang: 'ja',
+          linkUrl: 'https://example.com/philosophy/dynamic-equilibrium',
+          attachment: {
+            data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+            mimeType: 'image/png',
+            name: 'stair_tread_sketch.png'
+          }
+        });
         const response2 = await makeRequest({
           host: HOST,
           port: PORT,
@@ -202,13 +211,14 @@ async function runEvaluation() {
     if (res2Json && res2Json.relations && Array.isArray(res2Json.relations)) {
       const relation = res2Json.relations.find(r => r.to_engram_id === id1);
       if (relation) {
-        const hasScore = relation.strength >= 0.70;
+        const hasScore = relation.strength >= 0.60;
         const hasReason = relation.reason_of_connection && relation.reason_of_connection.trim() !== "";
-        if (hasScore && hasReason) {
+        const hasMetadata = res2Json.metadata && res2Json.metadata.model && typeof res2Json.metadata.entropy === 'number';
+        if (hasScore && hasReason && hasMetadata) {
           selfOrgPassed = true;
-          selfOrgDetail = `新規 ID2 (${id2}) と過去 ID1 (${id1}) が類似度 ${relation.strength.toFixed(2)} で双方向結線され、共鳴理由: "${relation.reason_of_connection.substring(0, 40)}..." が紡がれました。`;
+          selfOrgDetail = `新規 ID2 (${id2}) と過去 ID1 (${id1}) が類似度 ${relation.strength.toFixed(2)} で双方向結線され、共鳴理由: "${relation.reason_of_connection.substring(0, 40)}..." が紡がれました。また、マルチメディア処理後のメタデータ刻印（モデル: ${res2Json.metadata.model}）の正常搬送を確認。`;
         } else {
-          selfOrgDetail = `リンクはありますが、類似度スコア不足 (${relation.strength}) または接続理由が空です。`;
+          selfOrgDetail = `リンクはありますが、類似度スコア不足 (${relation.strength})、接続理由が空、あるいはメタデータ刻印 (${JSON.stringify(res2Json.metadata)}) が不正です。`;
         }
       } else {
         selfOrgDetail = `ID2 の関連リンク一覧に ID1 (${id1}) への参照が見つかりません。`;

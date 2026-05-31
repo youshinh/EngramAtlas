@@ -173,6 +173,124 @@ Please explain the context or resonant meaning (reason of connection) between th
     : `The structural design approach of accepting material imperfection/warp completely resonates with the DMR technique of controlling friction and airflow through the philosophy of boundary limit.`;
 }
 
+const https = require('https');
+const http = require('http');
+
+// Helper to fetch remote web page title and text preview
+function fetchUrlTitleAndText(targetUrl) {
+  return new Promise((resolve) => {
+    try {
+      const parsedUrl = new URL(targetUrl);
+      const client = parsedUrl.protocol === 'https:' ? https : http;
+      
+      const req = client.get(targetUrl, { timeout: 3000 }, (res) => {
+        let data = '';
+        res.on('data', chunk => { data += chunk; });
+        res.on('end', () => {
+          const titleMatch = data.match(/<title>([^<]*)<\/title>/i);
+          const title = titleMatch ? titleMatch[1].trim() : parsedUrl.hostname;
+          const cleanText = data
+            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+            .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .substring(0, 1500)
+            .trim();
+          resolve({ title, content: cleanText || "No content extracted" });
+        });
+      });
+      req.on('error', () => resolve({ title: parsedUrl.hostname, content: "Request failed" }));
+      req.on('timeout', () => {
+        req.destroy();
+        resolve({ title: parsedUrl.hostname, content: "Request timeout" });
+      });
+    } catch (e) {
+      resolve({ title: "Invalid URL", content: "Parsing failed" });
+    }
+  });
+}
+
+// Generate poetry Summary of remote URL using Gemini Flash
+async function generateUrlSummaryNoise(linkUrl, currentLang, apiKey) {
+  const webData = await fetchUrlTitleAndText(linkUrl);
+  
+  const prompt = currentLang === 'ja'
+    ? `以下のWebページの情報を解釈し、背後にあるコンセプト、思考、あるいは技術的・思想的なエッセンスを日本語1〜2段落の「思考ノイズ（未分化の思考断片）」として翻訳・再構成してください。余計な挨拶や前置きは完全に省き、要約された思考テキストのみを返してください。
+
+【WebページのURL】: ${linkUrl}
+【タイトル】: ${webData.title}
+【本文抜粋】: ${webData.content}`
+    : `Please interpret the following Web page information and translate/reconstruct its core concept, underlying thoughts, or technical/philosophical essence into 1 or 2 elegant paragraphs of "thought noise" in English. Do not include any greeting or conversational filler. Return ONLY the translated thought text.
+
+[URL]: ${linkUrl}
+[Title]: ${webData.title}
+[Content Extract]: ${webData.content}`;
+
+  if (apiKey && apiKey !== 'your_gemini_api_key_here') {
+    try {
+      const ai = new GoogleGenAI({ apiKey });
+      const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+      const response = await ai.models.generateContent({
+        model: model,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: { systemInstruction: systemInstruction, temperature: 0.7 }
+      });
+      return response.text.trim();
+    } catch (err) {
+      console.warn("⚠️ [Gemini URL Summarization API Error] Fallback default used:", err.message);
+    }
+  }
+
+  return currentLang === 'ja'
+    ? `[Web参照: ${webData.title}] ${linkUrl} の中に流れる情報代謝と関係性の潮流を観測しました。この界面の奥に潜む知識のエッセンスが、私たちの記憶の動的平衡と共鳴しています。`
+    : `[Web Reference: ${webData.title}] Observed the flow of information metabolism and relation streams within ${linkUrl}. The essence of knowledge behind this interface resonates with our dynamic memory equilibrium.`;
+}
+
+// Translate physical visual details or document elements via Gemini Multimodal into text thoughts
+async function generateMultimodalNoise(attachment, currentLang, apiKey) {
+  const prompt = currentLang === 'ja'
+    ? `添付された画像（またはドキュメント）を深く観察してください。ここに描かれているスケッチ、物理的な不均質特性（木目や反りなど）、図面、あるいは物理的な美学・デザイン意図を解釈し、背後に潜む「思考ノイズ（未完のアイデアや直感的なひらめき）」として日本語1〜2段落で言語化・翻訳してください。余計な解説や前置きは完全に省き、要約された思考テキストのみを返してください。`
+    : `Please carefully observe the attached image or document. Interpret the sketch, physical characteristics (wood warp, material texture, etc.), drawing, or design aesthetics/intent displayed, and translate/verbalize it into 1 or 2 elegant paragraphs of "thought noise" (raw intuition, unfinished idea) in English. Do not include any greetings or commentary. Return ONLY the translated thought text.`;
+
+  if (apiKey && apiKey !== 'your_gemini_api_key_here') {
+    try {
+      const ai = new GoogleGenAI({ apiKey });
+      const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+      
+      const contents = [
+        {
+          role: 'user',
+          parts: [
+            {
+              inlineData: {
+                data: attachment.data,
+                mimeType: attachment.mimeType
+              }
+            },
+            {
+              text: prompt
+            }
+          ]
+        }
+      ];
+
+      const response = await ai.models.generateContent({
+        model: model,
+        contents: contents,
+        config: { systemInstruction: systemInstruction, temperature: 0.7 }
+      });
+      return response.text.trim();
+    } catch (err) {
+      console.warn("⚠️ [Gemini Multimodal API Error] Fallback default used:", err.message);
+    }
+  }
+
+  const isPdf = attachment.mimeType === 'application/pdf';
+  return currentLang === 'ja'
+    ? `[添付メディア: ${attachment.name}] 物理的境界面から放射された${isPdf ? '情報構造（PDF）' : 'ビジュアルコンテキスト（画像）'}を、マテリアルの反りや不均質性を受容するアプローチにおいて美しく解読しました。`
+    : `[Attached Media: ${attachment.name}] Successfully decoded the ${isPdf ? 'information structure (PDF)' : 'visual context (image)'} projected from the physical interface, embracing its material imperfection and boundaries.`;
+}
+
 // ----------------------------------------------------
 // 🌐 Route Definitions
 // ----------------------------------------------------
@@ -182,21 +300,51 @@ app.get('/', (req, res) => {
 });
 
 app.post('/api/sendNoise', async (req, res) => {
-  const { userInput, lang, simulateError } = req.body;
+  const { userInput, lang, simulateError, attachment, linkUrl } = req.body;
   const currentLang = lang || 'en';
   const apiKey = process.env.GEMINI_API_KEY;
   const mongoUri = process.env.MONGODB_URI;
   const embedModel = process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2-preview';
 
-  if (!userInput) {
+  if (!userInput && !attachment && !linkUrl) {
     const emptyError = currentLang === 'ja' ? "ユーザーの入力が空です。" : "User input is empty.";
     return res.status(400).json({ error: emptyError });
   }
 
-  console.log(`\n🔮 [Received Noise in ${currentLang.toUpperCase()}]: "${userInput.substring(0, 60)}..."`);
+  // 1. Process Multimodal (Image/PDF) or Web Link inputs into translated thoughts
+  let translatedNoise = "";
+  let inputType = "text";
+  let detailTags = ["liftoff", "day3", currentLang];
 
-  // 1. Generate Embeddings for current input
-  const embedding = await getEmbedding(userInput, apiKey);
+  if (attachment) {
+    console.log(`📸 [Processing Multimodal Input]: "${attachment.name}" (${attachment.mimeType})`);
+    translatedNoise = await generateMultimodalNoise(attachment, currentLang, apiKey);
+    inputType = attachment.mimeType.startsWith('image/') ? 'image' : 'pdf';
+    detailTags.push(inputType);
+  }
+
+  if (linkUrl) {
+    console.log(`🌐 [Processing Web Link Input]: "${linkUrl}"`);
+    const urlSummary = await generateUrlSummaryNoise(linkUrl, currentLang, apiKey);
+    translatedNoise = translatedNoise 
+      ? `${translatedNoise}\n\n${urlSummary}`
+      : urlSummary;
+    inputType = attachment ? 'mixed' : 'url';
+    detailTags.push('url');
+  }
+
+  // Merge original user raw text with translated multimodal thoughts
+  let processedInputText = userInput || "";
+  if (translatedNoise) {
+    processedInputText = processedInputText
+      ? `${processedInputText}\n\n${translatedNoise}`
+      : translatedNoise;
+  }
+
+  console.log(`\n🔮 [Received Noise in ${currentLang.toUpperCase()}]: "${processedInputText.substring(0, 60)}..."`);
+
+  // 2. Generate Embeddings for current processed input
+  const embedding = await getEmbedding(processedInputText, apiKey);
   console.log(`⚡ Generated Embedding Vector (${embedding.length} dimensions using ${embedModel}).`);
 
   let dbResultId = null;
@@ -209,13 +357,15 @@ app.post('/api/sendNoise', async (req, res) => {
 
   // Define new Engram structure
   const newEngram = {
-    content: userInput,
-    raw_input_type: "text",
+    content: processedInputText,
+    raw_input_type: inputType,
     created_at: new Date(),
     metadata: {
       scope: "PERSONAL",
-      tags: ["liftoff", "day3", currentLang],
-      entropy_score: 0.5
+      tags: detailTags,
+      entropy_score: 0.5,
+      attachment: attachment ? { name: attachment.name, mimeType: attachment.mimeType } : null,
+      linkUrl: linkUrl || null
     },
     vector_embeddings: embedding,
     related_links: [],
@@ -223,7 +373,7 @@ app.post('/api/sendNoise', async (req, res) => {
       {
         timestamp: new Date(),
         action: "create",
-        comment: `Initial entry registered (Language: ${currentLang})`
+        comment: `Initial entry registered (Language: ${currentLang}, Mode: ${inputType})`
       }
     ]
   };
@@ -260,8 +410,8 @@ app.post('/api/sendNoise', async (req, res) => {
 
         console.log(`🔍 [MongoDB] Scanning ${pastEngrams.length} past engrams for similarities...`);
 
-        // Optimized live similarity threshold to 0.70 for real embeddings
-        const similarityThreshold = 0.70;
+        // Optimized live similarity threshold to 0.55 for real embeddings
+        const similarityThreshold = 0.55;
 
         for (const past of pastEngrams) {
           const score = cosineSimilarity(embedding, past.vector_embeddings);
@@ -331,7 +481,7 @@ app.post('/api/sendNoise', async (req, res) => {
 
     console.log(`🔍 [Mock DB] Scanning ${mockEngrams.length} past mock engrams for similarities...`);
 
-    const similarityThreshold = 0.70; // 0.70 for mock too for consistency
+    const similarityThreshold = 0.55; // 0.55 for mock too for consistency
 
     // Perform Similarity Search on in-memory collection
     for (const past of mockEngrams) {

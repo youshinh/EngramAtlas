@@ -236,6 +236,23 @@
           <textarea id="noiseInput" class="w-full h-40 p-4 rounded-xl minimal-input text-sm leading-relaxed placeholder-gray-400" placeholder="e.g., Strength calculation of stair treads. Reverse limitation approach integrating wood grain 'warp' into structural strength. Hypothesis of controlling friction and airflow with irregular grooves (DMR)..."></textarea>
         </div>
 
+        <!-- Multimodal Options (Quiet & Elegant) -->
+        <div class="space-y-4">
+          <!-- Web Link Input Box -->
+          <div class="relative">
+            <input type="url" id="linkInput" class="w-full px-4 py-2.5 rounded-xl minimal-input text-xs tracking-widest placeholder-gray-400" placeholder="Web Link (URL)">
+          </div>
+
+          <!-- File Upload Zone -->
+          <div class="relative">
+            <label for="fileAttachment" class="w-full py-4 rounded-xl border border-dashed flex flex-col items-center justify-center cursor-pointer transition-all duration-300 hover:bg-gray-100 dark:hover:bg-gray-800" style="border-color: var(--border-color); background-color: var(--input-bg);">
+              <span id="uiUploadText" class="text-xs tracking-widest text-gray-400 select-none">Attach Photo / Sketch / PDF (Release Media)</span>
+              <span id="fileNameDisplay" class="text-xs tracking-widest mt-1 hidden" style="color: var(--text-main);"></span>
+            </label>
+            <input type="file" id="fileAttachment" accept="image/*,application/pdf" class="hidden" onchange="handleFileSelect(this)">
+          </div>
+        </div>
+
         <button onclick="submitNoise()" id="btnSubmit" class="w-full py-3.5 rounded-xl font-light text-sm tracking-widest transition-all duration-300 transform active:scale-99 focus:outline-none flex justify-center items-center" style="background-color: var(--btn-bg); color: var(--btn-text);">
           <span id="btnSubmitText">Release (Begin Self-Organization)</span>
         </button>
@@ -287,7 +304,9 @@
           footer: "※ Memory as a convention of relationship. Dynamic equilibrium in perpetual flux.",
           langToggle: "日本語",
           themeDark: "DARK MODE",
-          themeLight: "LIGHT MODE"
+          themeLight: "LIGHT MODE",
+          uploadText: "Attach Photo / Sketch / PDF (Release Media)",
+          linkPlaceholder: "Web Link (URL)"
         },
         ja: {
           subtitle: "未分化の思考ノイズを受け止め、関係性を紡ぐ",
@@ -298,7 +317,9 @@
           footer: "※関係性の規約としての記憶。絶え間なく移り変わる動的平衡。",
           langToggle: "ENGLISH",
           themeDark: "ダークモード",
-          themeLight: "ライトモード"
+          themeLight: "ライトモード",
+          uploadText: "写真・スケッチ・PDFの添付（メディア放流）",
+          linkPlaceholder: "関連Webリンク (URL)"
         }
       };
 
@@ -320,6 +341,14 @@
         document.getElementById('uiFooterText').innerText = t.footer;
         
         document.getElementById('langToggleText').innerText = t.langToggle;
+
+        // Dynamic labels for Multimodal Inputs
+        document.getElementById('linkInput').placeholder = t.linkPlaceholder;
+        const uploadLabel = document.getElementById('uiUploadText');
+        const fileAttached = document.getElementById('fileAttachment').files.length > 0;
+        if (!fileAttached) {
+          uploadLabel.innerText = t.uploadText;
+        }
         
         // Update theme toggle text according to language
         const isDark = document.body.classList.contains('dark-theme');
@@ -342,10 +371,46 @@
 
       const isLocal = !window.google || !window.google.script;
 
+      let selectedFileBase64 = null;
+      let selectedFileMime = null;
+      let selectedFileName = null;
+
+      function handleFileSelect(input) {
+        const file = input.files[0];
+        const nameDisplay = document.getElementById('fileNameDisplay');
+        const uploadText = document.getElementById('uiUploadText');
+
+        if (!file) {
+          selectedFileBase64 = null;
+          selectedFileMime = null;
+          selectedFileName = null;
+          nameDisplay.classList.add('hidden');
+          uploadText.classList.remove('hidden');
+          return;
+        }
+
+        selectedFileName = file.name;
+        selectedFileMime = file.type;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const base64Data = e.target.result.split(',')[1];
+          selectedFileBase64 = base64Data;
+
+          nameDisplay.innerText = file.name;
+          nameDisplay.classList.remove('hidden');
+          uploadText.classList.add('hidden');
+        };
+        reader.readAsDataURL(file);
+      }
+
       function submitNoise() {
         const inputField = document.getElementById('noiseInput');
         const input = inputField.value;
-        if (!input.trim()) return;
+        const linkField = document.getElementById('linkInput');
+        const linkUrl = linkField.value;
+
+        if (!input.trim() && !selectedFileBase64 && !linkUrl.trim()) return;
 
         const btnSubmit = document.getElementById('btnSubmit');
         const btnSubmitText = document.getElementById('btnSubmitText');
@@ -358,15 +423,26 @@
         document.getElementById('loader').classList.remove('hidden');
         document.getElementById('resultContainer').classList.add('hidden');
 
+        const payload = {
+          userInput: input,
+          lang: currentLang,
+          linkUrl: linkUrl.trim() || null,
+          attachment: selectedFileBase64 ? {
+            data: selectedFileBase64,
+            mimeType: selectedFileMime,
+            name: selectedFileName
+          } : null
+        };
+
         if (isLocal) {
           fetch('/api/sendNoise', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userInput: input, lang: currentLang })
+            body: JSON.stringify(payload)
           })
           .then(res => res.json())
           .then(data => {
-            handleResponse(data, inputField, btnSubmit, btnSubmitText, originalBtnText);
+            handleResponse(data, inputField, linkField, btnSubmit, btnSubmitText, originalBtnText);
           })
           .catch(err => {
             handleFailure(err, btnSubmit, btnSubmitText, originalBtnText);
@@ -374,17 +450,16 @@
         } else {
           google.script.run
             .withSuccessHandler(function(response) {
-              // Reconstruct dynamic data payload for GAS compatibility
-              handleResponse({ response: response }, inputField, btnSubmit, btnSubmitText, originalBtnText);
+              handleResponse({ response: response }, inputField, linkField, btnSubmit, btnSubmitText, originalBtnText);
             })
             .withFailureHandler(function(err) {
               handleFailure(err, btnSubmit, btnSubmitText, originalBtnText);
             })
-            .sendNoiseToAgent(input, currentLang);
+            .sendNoiseToAgent(input, currentLang, payload.linkUrl, payload.attachment);
         }
       }
 
-      function handleResponse(data, inputField, btnSubmit, btnSubmitText, originalBtnText) {
+      function handleResponse(data, inputField, linkField, btnSubmit, btnSubmitText, originalBtnText) {
         document.getElementById('loader').classList.add('hidden');
         
         const responseText = data.response || "";
@@ -409,8 +484,17 @@
         
         document.getElementById('resultContainer').classList.remove('hidden');
         
-        // Clear text area elegantly
+        // Clear text area & links elegantly
         inputField.value = "";
+        linkField.value = "";
+        
+        // Clear file selector
+        document.getElementById('fileAttachment').value = "";
+        selectedFileBase64 = null;
+        selectedFileMime = null;
+        selectedFileName = null;
+        document.getElementById('fileNameDisplay').classList.add('hidden');
+        document.getElementById('uiUploadText').classList.remove('hidden');
         
         // Temporary success state for button
         btnSubmitText.innerText = currentLang === 'en' ? "Released Successfully" : "記憶の海へ放流完了";
