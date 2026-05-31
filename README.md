@@ -1,6 +1,23 @@
 # EngramAtlas
 計算生命体進化エンジン 〜 自己組織化する「あいだ」の動的平衡メモリ 〜
 
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Google Cloud](https://img.shields.io/badge/Google%20Cloud-Hackathon%202026-4285F4?logo=google-cloud&logoColor=white)](https://cloud.google.com)
+[![MongoDB Atlas](https://img.shields.io/badge/MongoDB%20Atlas-MCP%20Integrated-00ED64?logo=mongodb&logoColor=white)](https://www.mongodb.com/atlas)
+[![Gemini](https://img.shields.io/badge/Gemini-2.5%20Flash-8E75B2?logo=google&logoColor=white)](https://ai.google.dev)
+[![Node.js](https://img.shields.io/badge/Node.js-v18%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+
+> **Google Cloud Rapid Agent Hackathon 2026 — MongoDB Track 提出作品**
+
+---
+
+## Demo
+
+| | |
+|---|---|
+| **Demo Video** | *(coming soon — 3-min walkthrough)* |
+| **Devpost** | *(coming soon)* |
+
 ---
 
 ## 1. 思想と第一原理（Philosophy & First Principles）

@@ -12,6 +12,7 @@ app.use(express.json({ limit: '20mb' }));
 
 // In-memory mock database for fallback
 let mockEngrams = [];
+let isMongoActive = false;
 
 // Load AGENT.MD system instructions
 let systemInstruction = "あなたは計算生命体進化エンジン「EngramAtlas-Core」です。";
@@ -311,6 +312,177 @@ app.post('/api/sendNoise', async (req, res) => {
     return res.status(400).json({ error: emptyError });
   }
 
+  // 1.5. Detect Autonomous Intent (Approach A: Forget via Dialogue)
+  const lowerInput = userInput ? userInput.toLowerCase() : "";
+  const isForgetIntent = userInput && (
+    lowerInput.includes("忘却") ||
+    lowerInput.includes("消去") ||
+    lowerInput.includes("忘れて") ||
+    lowerInput.includes("削除") ||
+    lowerInput.includes("forget") ||
+    lowerInput.includes("delete") ||
+    lowerInput.includes("discard")
+  );
+
+  if (isForgetIntent) {
+    console.log(`🧹 [Autonomous Forget Detected via Dialogue]: "${userInput}"`);
+    
+    // Generate embedding for target search
+    const embedding = await getEmbedding(userInput, apiKey);
+    
+    let targetEngram = null;
+    let maxScore = -1;
+    let useMongo = false;
+    let targetId = null;
+
+    if (isMongoActive && mongoUri && mongoUri !== 'mongodb_connection_string_here') {
+      const dbClient = new MongoClient(mongoUri);
+      await dbClient.connect();
+      try {
+        const db = dbClient.db('engram_atlas');
+        const engramsCollection = db.collection('engrams');
+        // 1. Gather all high-similarity candidates (>= 0.70)
+        const pastEngrams = await engramsCollection.find({ 
+          vector_embeddings: { $exists: true }
+        }).toArray();
+
+        const candidates = [];
+        for (const past of pastEngrams) {
+          const score = cosineSimilarity(embedding, past.vector_embeddings);
+          if (score >= 0.70) {
+            candidates.push({ engram: past, score });
+          }
+        }
+
+        if (candidates.length > 0) {
+          // If high-similarity matches exist, pick the one with the absolute newest database insertion timestamp
+          let maxTime = -1;
+          candidates.forEach(c => {
+            const time = c.engram._id.getTimestamp ? c.engram._id.getTimestamp().getTime() : 0;
+            if (time > maxTime) {
+              maxTime = time;
+              targetEngram = c.engram;
+              maxScore = c.score;
+            }
+          });
+        } else {
+          // Fallback to highest similarity score >= 0.50
+          for (const past of pastEngrams) {
+            const score = cosineSimilarity(embedding, past.vector_embeddings);
+            if (score >= 0.50 && score > maxScore) {
+              maxScore = score;
+              targetEngram = past;
+            }
+          }
+        }
+
+        if (targetEngram) {
+          targetId = targetEngram._id.toString();
+          // Delete target
+          const deleteRes = await engramsCollection.deleteOne({ _id: targetEngram._id });
+          // References cleanup ($pull)
+          const updateRes = await engramsCollection.updateMany(
+            {},
+            { $pull: { related_links: { to_engram_id: targetId } } }
+          );
+          console.log(`🗑️ [MongoDB] Autonomously forgotten engram: ${targetId}. Success: ${deleteRes.deletedCount > 0}. Cleared references: ${updateRes.modifiedCount}`);
+          useMongo = true;
+        }
+      } finally {
+        await dbClient.close();
+      }
+    }
+
+    if (!useMongo) {
+      // Mock DB: Gather high-similarity candidates
+      const candidates = [];
+      for (const past of mockEngrams) {
+        const score = cosineSimilarity(embedding, past.vector_embeddings);
+        if (score >= 0.70) {
+          candidates.push({ engram: past, score });
+        }
+      }
+
+      if (candidates.length > 0) {
+        let maxTime = -1;
+        candidates.forEach(c => {
+          const time = c.engram.created_at ? new Date(c.engram.created_at).getTime() : 0;
+          if (time > maxTime) {
+            maxTime = time;
+            targetEngram = c.engram;
+            maxScore = c.score;
+          }
+        });
+      } else {
+        for (const past of mockEngrams) {
+          const score = cosineSimilarity(embedding, past.vector_embeddings);
+          if (score >= 0.50 && score > maxScore) {
+            maxScore = score;
+            targetEngram = past;
+          }
+        }
+      }
+
+      if (targetEngram) {
+        targetId = targetEngram._id;
+        mockEngrams = mockEngrams.filter(e => e._id !== targetId);
+        mockEngrams.forEach(e => {
+          if (e.related_links) {
+            e.related_links = e.related_links.filter(link => link.to_engram_id !== targetId);
+          }
+        });
+        console.log(`🗑️ [Mock DB] Autonomously forgotten mock engram ID: ${targetId}`);
+      }
+    }
+
+    if (targetId) {
+      // Success response
+      let cognitiveResponse = "";
+      if (apiKey && apiKey !== 'your_gemini_api_key_here') {
+        try {
+          const ai = new GoogleGenAI({ apiKey });
+          const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+          const prompt = currentLang === 'ja'
+            ? `ユーザーからの指示: "${userInput}"\n\n削除対象となった思考テキスト: "${targetEngram.content}"\n\nこの思考ノイズを特定して完全に忘却し、記憶から消去して関係性の代謝（Metabolism）をクリーンアップしたことを、極めて優美で知的、かつコグニティブな文脈（『記憶の海へ還元しました』等）を用いて、日本語で報告してください。余計な挨拶や前置きは省いて結果とコグニティブな意味のみを返してください。`
+            : `User Instruction: "${userInput}"\n\nForgotten thought text: "${targetEngram.content}"\n\nPlease report that you have autonomously identified and completely forgotten this engram, clearing it from the memory network and metabolising (cleaning up) its associations gracefully. Use a cognitive, poetic tone in English.`;
+
+          const response = await ai.models.generateContent({
+            model: model,
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            config: { systemInstruction: systemInstruction, temperature: 0.7 }
+          });
+          cognitiveResponse = response.text.trim();
+        } catch (aiErr) {
+          console.error("❌ [Gemini Error on Autonomous Forget] Fallback response applied:", aiErr.message);
+        }
+      }
+
+      if (!cognitiveResponse) {
+        cognitiveResponse = currentLang === 'ja'
+          ? `ご指示に基づき、該当の思考ノイズ（『${targetEngram.content.substring(0, 40)}...』）を記憶の海へ優美に還元（忘却・消去）しました。これに伴い、記憶空間上の関連リンクは完全に代謝（Metabolism）され、ネットワークの動的平衡が再調整されました。`
+          : `Based on your request, the specified thought noise ("${targetEngram.content.substring(0, 40)}...") has been gracefully forgotten and returned to the ocean of memory. All associated links within the network have been fully metabolised and cleared to maintain equilibrium.`;
+      }
+
+      return res.json({
+        response: cognitiveResponse,
+        db_id: targetId,
+        mode: useMongo ? "production" : "mock",
+        relations: [],
+        metadata: {
+          model: embedModel,
+          entropy: 0.0,
+          scope: "PERSONAL"
+        }
+      });
+    } else {
+      // target not found fallback
+      const errorMsg = currentLang === 'ja'
+        ? "指示に合致する忘却対象の思考ノイズを記憶ネットワークから特定できませんでした。"
+        : "Could not identify any matching thought noise to forget from the memory network.";
+      return res.status(404).json({ error: errorMsg });
+    }
+  }
+
   // 1. Process Multimodal (Image/PDF) or Web Link inputs into translated thoughts
   let translatedNoise = "";
   let inputType = "text";
@@ -401,6 +573,7 @@ app.post('/api/sendNoise', async (req, res) => {
         dbResultId = insertRes.insertedId.toString();
         newEngram._id = insertRes.insertedId;
         useMongo = true;
+        isMongoActive = true;
 
         // Find all past engrams to perform vector search locally
         const pastEngrams = await engramsCollection.find({ 
@@ -432,8 +605,8 @@ app.post('/api/sendNoise', async (req, res) => {
             await engramsCollection.updateOne(
               { _id: newEngram._id },
               { 
-                $push: { related_links: newLinkForCurrent },
                 $push: { 
+                  related_links: newLinkForCurrent,
                   evolution_history: {
                     timestamp: new Date(),
                     action: "self_organize_link",
@@ -452,8 +625,8 @@ app.post('/api/sendNoise', async (req, res) => {
             await engramsCollection.updateOne(
               { _id: past._id },
               { 
-                $push: { related_links: newLinkForPast },
                 $push: { 
+                  related_links: newLinkForPast,
                   evolution_history: {
                     timestamp: new Date(),
                     action: "self_organize_link",
@@ -644,6 +817,415 @@ app.post('/api/sendNoise', async (req, res) => {
       scope: newEngram.metadata.scope || "PERSONAL"
     }
   });
+});
+
+// ----------------------------------------------------
+// 🧠 Verification and Semantic Navigation API (Day 12-14)
+// ----------------------------------------------------
+
+app.get('/api/getEngram', async (req, res) => {
+  const { id } = req.query;
+  if (!id) return res.status(400).json({ error: "ID is required" });
+
+  const mongoUri = process.env.MONGODB_URI;
+
+  try {
+    if (isMongoActive && mongoUri && mongoUri !== 'mongodb_connection_string_here') {
+      const dbClient = new MongoClient(mongoUri);
+      await dbClient.connect();
+      try {
+        const db = dbClient.db('engram_atlas');
+        const engramsCollection = db.collection('engrams');
+        
+        let objId;
+        try {
+          objId = new ObjectId(id);
+        } catch (e) {
+          return res.status(400).json({ error: "Invalid ObjectId format" });
+        }
+        
+        const engram = await engramsCollection.findOne({ _id: objId });
+        if (!engram) {
+          return res.status(404).json({ error: "Engram not found" });
+        }
+        return res.json(engram);
+      } finally {
+        await dbClient.close();
+      }
+    } else {
+      const engram = mockEngrams.find(e => e._id === id);
+      if (!engram) {
+        return res.status(404).json({ error: "Engram not found" });
+      }
+      return res.json(engram);
+    }
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/forgetEngram', async (req, res) => {
+  const { db_id } = req.body;
+  if (!db_id) return res.status(400).json({ error: "db_id is required" });
+
+  const mongoUri = process.env.MONGODB_URI;
+  console.log(`🧹 [Forget Request] ID: ${db_id}`);
+
+  try {
+    if (isMongoActive && mongoUri && mongoUri !== 'mongodb_connection_string_here') {
+      const dbClient = new MongoClient(mongoUri);
+      await dbClient.connect();
+      try {
+        const db = dbClient.db('engram_atlas');
+        const engramsCollection = db.collection('engrams');
+        
+        let objId;
+        try {
+          objId = new ObjectId(db_id);
+        } catch (e) {
+          return res.status(400).json({ error: "Invalid ObjectId format" });
+        }
+
+        // 1. 指定ドキュメントの削除
+        const deleteRes = await engramsCollection.deleteOne({ _id: objId });
+        
+        // 2. 参照のちぎり取り（他のすべての related_links から db_id への参照を pull する）
+        const updateRes = await engramsCollection.updateMany(
+          {},
+          { $pull: { related_links: { to_engram_id: db_id } } }
+        );
+
+        console.log(`🗑️ [MongoDB] Deleted engram. Success: ${deleteRes.deletedCount > 0}. Cleared references: ${updateRes.modifiedCount}`);
+        return res.json({ success: true, message: "Engram forgotten and relationships metabolised" });
+      } finally {
+        await dbClient.close();
+      }
+    } else {
+      // Mock DB
+      const exists = mockEngrams.some(e => e._id === db_id);
+      mockEngrams = mockEngrams.filter(e => e._id !== db_id);
+      
+      // 参照のちぎり取り
+      mockEngrams.forEach(e => {
+        if (e.related_links) {
+          e.related_links = e.related_links.filter(link => link.to_engram_id !== db_id);
+        }
+      });
+      
+      console.log(`🗑️ [Mock DB] Deleted engram ID: ${db_id}. Success: ${exists}.`);
+      return res.json({ success: true, message: "Mock engram forgotten and relationships metabolised" });
+    }
+  } catch (err) {
+    console.error(`❌ [Forget Error]:`, err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/updateEngram', async (req, res) => {
+  const { db_id, userInput, lang, linkUrl, attachment } = req.body;
+  if (!db_id) return res.status(400).json({ error: "db_id is required" });
+  if (!userInput && !attachment && !linkUrl) {
+    return res.status(400).json({ error: "Update content is empty" });
+  }
+
+  const currentLang = lang || 'en';
+  const apiKey = process.env.GEMINI_API_KEY;
+  const mongoUri = process.env.MONGODB_URI;
+  const embedModel = process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2-preview';
+
+  console.log(`📝 [Update/Refine Request] ID: ${db_id}`);
+
+  // 1. メディア・リンクの処理（sendNoise と同様）
+  let translatedNoise = "";
+  let inputType = "text";
+  let detailTags = ["liftoff", "day3", currentLang, "refined"];
+
+  if (attachment) {
+    translatedNoise = await generateMultimodalNoise(attachment, currentLang, apiKey);
+    inputType = attachment.mimeType.startsWith('image/') ? 'image' : 'pdf';
+    detailTags.push(inputType);
+  }
+
+  if (linkUrl) {
+    const urlSummary = await generateUrlSummaryNoise(linkUrl, currentLang, apiKey);
+    translatedNoise = translatedNoise ? `${translatedNoise}\n\n${urlSummary}` : urlSummary;
+    inputType = attachment ? 'mixed' : 'url';
+    detailTags.push('url');
+  }
+
+  let processedInputText = userInput || "";
+  if (translatedNoise) {
+    processedInputText = processedInputText ? `${processedInputText}\n\n${translatedNoise}` : translatedNoise;
+  }
+
+  // 2. 新しいベクトルの生成
+  const embedding = await getEmbedding(processedInputText, apiKey);
+
+  try {
+    if (isMongoActive && mongoUri && mongoUri !== 'mongodb_connection_string_here') {
+      const dbClient = new MongoClient(mongoUri);
+      await dbClient.connect();
+      try {
+        const db = dbClient.db('engram_atlas');
+        const engramsCollection = db.collection('engrams');
+        
+        let objId;
+        try {
+          objId = new ObjectId(db_id);
+        } catch (e) {
+          return res.status(400).json({ error: "Invalid ObjectId format" });
+        }
+
+        // a. 相手ノードからの古い参照の完全クリーンアップ（この db_id への参照を pull する）
+        await engramsCollection.updateMany(
+          {},
+          { $pull: { related_links: { to_engram_id: db_id } } }
+        );
+
+        // b. 自身の更新（related_links を一旦空にする）
+        const updateDoc = {
+          $set: {
+            content: processedInputText,
+            raw_input_type: inputType,
+            related_links: [], // 一度リセット
+            'metadata.linkUrl': linkUrl || null,
+            'metadata.attachment': attachment ? { name: attachment.name, mimeType: attachment.mimeType } : null,
+            vector_embeddings: embedding
+          },
+          $push: {
+            evolution_history: {
+              timestamp: new Date(),
+              action: "refine",
+              comment: `Engram refined and re-metabolized (Language: ${currentLang})`
+            }
+          }
+        };
+
+        await engramsCollection.updateOne({ _id: objId }, updateDoc);
+
+        // c. 新しい類似性に基づく双方向リンクの再構築
+        const pastEngrams = await engramsCollection.find({ 
+          _id: { $ne: objId },
+          vector_embeddings: { $exists: true }
+        }).toArray();
+
+        const similarityThreshold = 0.55;
+        const matchedRelations = [];
+
+        for (const past of pastEngrams) {
+          const score = cosineSimilarity(embedding, past.vector_embeddings);
+          if (score >= similarityThreshold) {
+            const reason = await generateReasonOfConnection(userInput, past.content, currentLang, apiKey);
+            
+            const newLinkForCurrent = {
+              to_engram_id: past._id.toString(),
+              strength: score,
+              reason_of_connection: reason
+            };
+            matchedRelations.push(newLinkForCurrent);
+
+            // 自分側に追加
+            await engramsCollection.updateOne(
+              { _id: objId },
+              { 
+                $push: { 
+                  related_links: newLinkForCurrent,
+                  evolution_history: {
+                    timestamp: new Date(),
+                    action: "self_organize_link",
+                    comment: `Connected to ${past._id.toString()} during refine with similarity ${score.toFixed(2)}`
+                  }
+                }
+              }
+            );
+
+            // 相手側にも追加
+            const newLinkForPast = {
+              to_engram_id: db_id,
+              strength: score,
+              reason_of_connection: reason
+            };
+            await engramsCollection.updateOne(
+              { _id: past._id },
+              { 
+                $push: { 
+                  related_links: newLinkForPast,
+                  evolution_history: {
+                    timestamp: new Date(),
+                    action: "self_organize_link",
+                    comment: `Connected to refined ${db_id} with similarity ${score.toFixed(2)}`
+                  }
+                }
+              }
+            );
+          }
+        }
+
+        // d. 思考プロセスの生成（sendNoise と同様）
+        let agentResponse = "";
+        if (apiKey && apiKey !== 'your_gemini_api_key_here') {
+          try {
+            const ai = new GoogleGenAI({ apiKey });
+            const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+            const langDirective = currentLang === 'ja'
+              ? "IMPORTANT: Respond in Japanese. Explain your plan, the vector embedding generation, and how you refined and re-linked with past nodes if any."
+              : "IMPORTANT: Respond in English. Explain your plan, the vector embedding generation, and how you refined and re-linked with past nodes if any.";
+
+            const response = await ai.models.generateContent({
+              model: model,
+              contents: [
+                { 
+                  role: 'user', 
+                  parts: [{ 
+                    text: `User Input: "${userInput}"\n\nThis noise was refined and updated (ID: ${db_id}). Connections re-made: ${JSON.stringify(matchedRelations)}\n\nReport your thinking process and how you dynamically weaved these connections.\n\n${langDirective}` 
+                  }] 
+                },
+              ],
+              config: { systemInstruction: systemInstruction, temperature: 0.7 }
+            });
+            agentResponse = response.text;
+          } catch (aiErr) {
+            console.error("⚠️ Gemini Error on Refine response:", aiErr.message);
+          }
+        }
+
+        if (!agentResponse) {
+          agentResponse = currentLang === 'ja'
+            ? `### EngramAtlas-Core 自己組織化プロセス（推敲完了）\n\n1. **推敲による代謝**: エングラムID \`${db_id}\` の内容が更新され、新ベクトルが生成されました。\n2. **再結線**: 既存の記憶との類似度を再計算し、双方向リンクを再構築しました。\n\n--- \n> **ステータス**: GREEN (推敲および動的平衡の再調整が成功しました)`
+            : `### EngramAtlas-Core Self-Organization Process (Refined)\n\n1. **Refinement Metabolism**: Updated content for ID \`${db_id}\` and generated new vector.\n2. **Re-connection**: Recalculated similarities and rebuilt bi-directional links.\n\n--- \n> **Status**: GREEN (Refinement and re-equilibrium complete)`;
+        }
+
+        return res.json({
+          response: agentResponse,
+          db_id: db_id,
+          mode: "production",
+          relations: matchedRelations,
+          metadata: {
+            model: embedModel,
+            entropy: 0.4,
+            scope: "PERSONAL"
+          }
+        });
+      } finally {
+        await dbClient.close();
+      }
+    } else {
+      // Mock DB
+      const engram = mockEngrams.find(e => e._id === db_id);
+      if (!engram) return res.status(404).json({ error: "Mock engram not found" });
+
+      // a. 相手ノードからの古い参照のクリーンアップ
+      mockEngrams.forEach(e => {
+        if (e.related_links) {
+          e.related_links = e.related_links.filter(link => link.to_engram_id !== db_id);
+        }
+      });
+
+      // b. 自身の更新
+      engram.content = processedInputText;
+      engram.raw_input_type = inputType;
+      engram.related_links = [];
+      if (linkUrl) engram.metadata.linkUrl = linkUrl;
+      if (attachment) engram.metadata.attachment = { name: attachment.name, mimeType: attachment.mimeType };
+      engram.vector_embeddings = embedding;
+      engram.evolution_history.push({
+        timestamp: new Date(),
+        action: "refine",
+        comment: `Mock engram refined and re-metabolized (Language: ${currentLang})`
+      });
+
+      // c. 再結線
+      const similarityThreshold = 0.55;
+      const matchedRelations = [];
+
+      for (const past of mockEngrams) {
+        if (past._id === db_id) continue;
+        const score = cosineSimilarity(embedding, past.vector_embeddings);
+        if (score >= similarityThreshold) {
+          const reason = await generateReasonOfConnection(userInput, past.content, currentLang, apiKey);
+          
+          const newLinkForCurrent = {
+            to_engram_id: past._id,
+            strength: score,
+            reason_of_connection: reason
+          };
+          matchedRelations.push(newLinkForCurrent);
+          engram.related_links.push(newLinkForCurrent);
+          
+          engram.evolution_history.push({
+            timestamp: new Date(),
+            action: "self_organize_link",
+            comment: `Connected to ${past._id} during mock refine with similarity ${score.toFixed(2)}`
+          });
+
+          past.related_links.push({
+            to_engram_id: db_id,
+            strength: score,
+            reason_of_connection: reason
+          });
+          past.evolution_history.push({
+            timestamp: new Date(),
+            action: "self_organize_link",
+            comment: `Connected to mock refined ${db_id} with similarity ${score.toFixed(2)}`
+          });
+        }
+      }
+
+      const agentResponse = currentLang === 'ja'
+        ? `### EngramAtlas-Core 自己組織化プロセス（推敲完了・Mock）\n\n1. **推敲による代謝**: エングラムID \`${db_id}\` の内容が更新され、新ベクトルが生成されました。\n2. **再結線**: 既存の記憶との類似度を再計算し、双方向リンクを再構築しました。\n\n--- \n> **ステータス**: GREEN (推敲および動的平衡の再調整が成功しました)`
+        : `### EngramAtlas-Core Self-Organization Process (Refined - Mock)\n\n1. **Refinement Metabolism**: Updated content for ID \`${db_id}\` and generated new vector.\n2. **Re-connection**: Recalculated similarities and rebuilt bi-directional links.\n\n--- \n> **Status**: GREEN (Refinement and re-equilibrium complete)`;
+
+      return res.json({
+        response: agentResponse,
+        db_id: db_id,
+        mode: "mock",
+        relations: matchedRelations,
+        metadata: {
+          model: embedModel,
+          entropy: 0.4,
+          scope: "PERSONAL"
+        }
+      });
+    }
+  } catch (err) {
+    console.error(`❌ [Refine Error]:`, err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/getAllEngrams', async (req, res) => {
+  const mongoUri = process.env.MONGODB_URI;
+
+  try {
+    if (isMongoActive && mongoUri && mongoUri !== 'mongodb_connection_string_here') {
+      const dbClient = new MongoClient(mongoUri);
+      await dbClient.connect();
+      try {
+        const db = dbClient.db('engram_atlas');
+        const engramsCollection = db.collection('engrams');
+        
+        // 3,072次元ベクトルは可視化に不要なので除外してトラフィックを節約
+        const engrams = await engramsCollection.find(
+          {},
+          { projection: { vector_embeddings: 0 } }
+        ).toArray();
+        
+        return res.json(engrams);
+      } finally {
+        await dbClient.close();
+      }
+    } else {
+      // Mock DB - ベクトルを除外してコピー
+      const engrams = mockEngrams.map(e => {
+        const { vector_embeddings, ...rest } = e;
+        return rest;
+      });
+      return res.json(engrams);
+    }
+  } catch (err) {
+    console.error("❌ [getAllEngrams Error]:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
 });
 
 app.listen(PORT, () => {

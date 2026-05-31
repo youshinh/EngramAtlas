@@ -191,23 +191,133 @@
         background: var(--border-color);
         margin: 1.25rem 0;
       }
+
+      /* Premium Button Affordances based on Ergonomics */
+      .ergonomic-btn {
+        background-color: var(--btn-bg);
+        color: var(--btn-text);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+      }
+      .dark-theme .ergonomic-btn {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.03);
+      }
+      .ergonomic-btn:hover {
+        transform: translateY(-1.5px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+        filter: brightness(1.05);
+      }
+      .dark-theme .ergonomic-btn:hover {
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      }
+      .ergonomic-btn:active {
+        transform: translateY(0.5px);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+      }
+      .ergonomic-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none !important;
+        box-shadow: none !important;
+      }
+
+      /* Control pill buttons in top-right */
+      .control-pill {
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        color: var(--text-sub);
+        padding: 0.35rem 0.85rem;
+        border-radius: 9999px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        font-family: 'Playfair Display', 'Noto Serif JP', serif;
+        font-size: 0.65rem;
+        letter-spacing: 0.15em;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .control-pill:hover {
+        border-color: var(--text-sub);
+        color: var(--text-main);
+        background-color: rgba(0, 0, 0, 0.02);
+        transform: translateY(-0.5px);
+      }
+      .dark-theme .control-pill:hover {
+        background-color: rgba(255, 255, 255, 0.02);
+      }
+      .control-pill:active {
+        transform: translateY(0.5px) scale(0.98);
+      }
+
+      /* Attachment zone enhancements (Ergonomic boundary recognition) */
+      .attachment-zone {
+        border: 2px dashed rgba(113, 128, 150, 0.45);
+        background-color: var(--input-bg);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.01);
+      }
+      .dark-theme .attachment-zone {
+        border-color: rgba(160, 174, 192, 0.35);
+      }
+      .attachment-zone:hover {
+        border-color: var(--text-main);
+        background-color: rgba(0, 0, 0, 0.015);
+        transform: translateY(-0.5px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+      }
+      .dark-theme .attachment-zone:hover {
+        background-color: rgba(255, 255, 255, 0.015);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+      }
+      .attachment-zone:focus-within {
+        outline: none;
+        border-color: var(--text-main);
+        box-shadow: 0 0 0 1.5px var(--text-main);
+      }
+
+      /* Micro premium pill inside upload zone */
+      .upload-pill {
+        font-family: 'Playfair Display', 'Noto Serif JP', serif;
+        font-size: 0.65rem;
+        letter-spacing: 0.1em;
+        background-color: var(--btn-bg);
+        color: var(--btn-text);
+        padding: 0.3rem 0.75rem;
+        border-radius: 9999px;
+        margin-top: 0.5rem;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+      }
+      .attachment-zone:hover .upload-pill {
+        filter: brightness(1.1);
+        transform: scale(1.02);
+      }
     </style>
   </head>
   <body class="flex items-center justify-center p-6 relative">
     
     <!-- Language & Theme Controllers in top-right -->
-    <div class="absolute top-6 right-6 flex items-center space-x-4" style="z-index: 10;">
+    <div class="absolute top-6 right-6 flex items-center space-x-3" style="z-index: 10;">
       <!-- Language Selector Button -->
-      <button onclick="toggleLanguage()" class="p-2 rounded-full border border-transparent hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-300 text-xs tracking-widest focus:outline-none" style="color: var(--text-sub);">
+      <button onclick="toggleLanguage()" class="control-pill focus:outline-none">
         <span id="langToggleText">日本語</span>
       </button>
       
-      <!-- Split line -->
-      <span class="text-xs select-none" style="color: var(--border-color);">|</span>
-      
-      <!-- Theme Switch Button -->
-      <button onclick="toggleTheme()" class="p-2 rounded-full border border-transparent hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-300 text-xs tracking-widest focus:outline-none" style="color: var(--text-sub);">
-        <span id="themeToggleText">DARK MODE</span>
+      <!-- Theme Switch Button (Pure SVG Icon for Ergonomic Minimalism) -->
+      <button onclick="toggleTheme()" class="control-pill focus:outline-none" id="btnThemeToggle" style="width: 2rem; height: 2rem; padding: 0; border-radius: 9999px;">
+        <span id="themeToggleIcon" class="flex items-center justify-center"></span>
       </button>
     </div>
 
@@ -250,23 +360,30 @@
 
           <!-- File Upload Zone -->
           <div class="relative">
-            <label for="fileAttachment" class="w-full py-5 rounded-xl border border-dashed flex flex-col items-center justify-center cursor-pointer transition-all duration-300 hover:bg-gray-100 dark:hover:bg-gray-800" style="border-color: var(--border-color); background-color: var(--input-bg);">
+            <label for="fileAttachment" class="w-full attachment-zone">
               <!-- Paperclip minimal line SVG -->
               <span id="uiUploadIcon" class="mb-2 opacity-50" style="color: var(--text-sub);">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
                 </svg>
               </span>
-              <span id="uiUploadText" class="text-xs tracking-widest text-gray-400 select-none">Attach Photo / Sketch / PDF (Release Media)</span>
+              <span id="uiUploadText" class="text-xs tracking-widest text-gray-400 select-none text-center">Attach Photo / Sketch / PDF (Release Media)</span>
+              <!-- Premium ergonomic micro button inside upload zone for higher affordance -->
+              <span id="uiUploadButton" class="upload-pill select-none">Select File</span>
               <span id="fileNameDisplay" class="text-xs tracking-widest mt-1 hidden" style="color: var(--text-main);"></span>
             </label>
             <input type="file" id="fileAttachment" accept="image/*,application/pdf" class="hidden" onchange="handleFileSelect(this)">
           </div>
         </div>
 
-        <button onclick="submitNoise()" id="btnSubmit" class="w-full py-3.5 rounded-xl font-light text-sm tracking-widest transition-all duration-300 transform active:scale-99 focus:outline-none flex justify-center items-center" style="background-color: var(--btn-bg); color: var(--btn-text);">
-          <span id="btnSubmitText">Release (Begin Self-Organization)</span>
-        </button>
+        <div class="flex items-center space-x-3">
+          <button onclick="submitNoise()" id="btnSubmit" class="flex-grow py-4 rounded-xl ergonomic-btn font-medium text-sm tracking-widest focus:outline-none flex justify-center items-center">
+            <span id="btnSubmitText">Release (Begin Self-Organization)</span>
+          </button>
+          <button onclick="cancelRefine()" id="btnCancelRefine" class="hidden py-4 px-6 rounded-xl font-medium text-sm tracking-widest focus:outline-none border transition-all duration-300" style="border-color: var(--border-color); color: var(--text-sub); background-color: var(--input-bg);">
+            <span id="btnCancelText">Cancel</span>
+          </button>
+        </div>
 
         <!-- Loader -->
         <div id="loader" class="hidden text-center py-4">
@@ -278,13 +395,62 @@
         <!-- Result Container -->
         <div id="resultContainer" class="hidden p-6 rounded-xl border fade-in" style="background-color: var(--result-bg); border-color: var(--border-color);">
           
-          <!-- Silent Elegant Metadata Signature -->
-          <div id="resultMetadata" class="text-right text-xs italic tracking-widest mb-3 opacity-60 select-none" style="color: var(--text-sub); font-family: 'Playfair Display', 'Noto Serif JP', serif;"></div>
+          <!-- Silent Elegant Header with Navigation and Metadata -->
+          <div class="flex justify-between items-center mb-4 pb-2 border-b" style="border-color: var(--border-color);">
+            <!-- Actions (Refine & Forget) -->
+            <div class="flex items-center space-x-4 select-none" style="font-family: 'Playfair Display', 'Noto Serif JP', serif; font-weight: 300;">
+              <button onclick="triggerRefine()" id="btnRefineAction" class="text-xs tracking-widest transition-all duration-300 underline underline-offset-4 decoration-1 opacity-50 hover:opacity-100 flex items-center justify-center" style="color: var(--text-sub); border: none; background: none; padding: 0;">
+                Refine
+              </button>
+              <button onclick="triggerForgetConfirmation()" id="btnForgetAction" class="text-xs tracking-widest transition-all duration-300 underline underline-offset-4 decoration-1 opacity-50 hover:opacity-100 flex items-center justify-center" style="color: #ef4444; border: none; background: none; padding: 0;">
+                Forget
+              </button>
+              
+              <!-- Inline Forget Confirmation (Ultra-thin elegant dialogue style) -->
+              <div id="forgetConfirmation" class="hidden flex items-center space-x-3 text-xs" style="font-family: 'Playfair Display', 'Noto Serif JP', serif; font-weight: 300;">
+                <span id="uiForgetConfirmText" class="text-red-500 tracking-widest opacity-80 select-none">Forget?</span>
+                <button onclick="confirmForget()" id="btnForgetYes" class="text-xs tracking-widest transition-all duration-300 underline underline-offset-4 decoration-1 hover:opacity-100 flex items-center justify-center" style="color: #ef4444; border: none; background: none; padding: 0;">Yes</button>
+                <span class="opacity-30" style="color: var(--text-sub);">/</span>
+                <button onclick="cancelForget()" id="btnForgetNo" class="text-xs tracking-widest transition-all duration-300 underline underline-offset-4 decoration-1 opacity-50 hover:opacity-100 flex items-center justify-center" style="color: var(--text-sub); border: none; background: none; padding: 0;">No</button>
+              </div>
+            </div>
+            
+            <!-- Silent Elegant Metadata Signature -->
+            <div id="resultMetadata" class="text-right text-xs italic tracking-widest opacity-60 select-none" style="color: var(--text-sub); font-family: 'Playfair Display', 'Noto Serif JP', serif;"></div>
+          </div>
 
-          <h3 id="uiResultTitle" class="text-xs font-semibold tracking-wider mb-3 pb-2 border-b" style="color: var(--text-main); border-color: var(--border-color);">
+          <h3 id="uiResultTitle" class="text-xs font-semibold tracking-wider mb-3 pb-2 border-b" style="color: var(--text-main); border-color: var(--border-color); display: none;">
             Cognitive Path & Emergent Results
           </h3>
           <div id="resultContent" class="markdown-content text-xs leading-relaxed text-left tracking-wide" style="color: var(--text-main);"></div>
+        </div>
+
+        <!-- Semantic Memory Map Section (Premium Visualization Space) -->
+        <div class="mt-8 pt-6 border-t" style="border-color: var(--border-color);">
+          <div class="flex justify-between items-center mb-3 select-none">
+            <h3 id="uiMapTitle" class="text-xs font-semibold tracking-widest text-left" style="color: var(--text-main); font-family: 'Playfair Display', 'Noto Serif JP', serif;">
+              Semantic Memory Space
+            </h3>
+            <span id="uiMapHelp" class="text-xxs tracking-wider italic" style="color: var(--text-sub); font-size: 0.6rem;">
+              Drag nodes to explore resonance.
+            </span>
+          </div>
+          
+          <!-- Elegant Interactive Canvas container -->
+          <div class="relative w-full rounded-2xl overflow-hidden border" style="border-color: var(--border-color); background-color: var(--input-bg);">
+            <canvas id="memoryMapCanvas" width="448" height="280" class="w-full h-70 block cursor-grab active:cursor-grabbing"></canvas>
+            
+            <!-- Elegant alignment tools inside canvas -->
+            <div class="absolute bottom-3 right-3 flex space-x-1.5 opacity-80 hover:opacity-100 transition-opacity duration-300">
+              <button onclick="mapEngine.resetPositions()" id="btnMapAlign" class="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xxs tracking-widest transition-all border duration-300 font-medium hover:scale-102" style="background-color: var(--input-bg); border-color: var(--border-color); color: var(--text-main); font-size: 0.6rem; font-family: 'Playfair Display', 'Noto Serif JP', serif;">
+                <!-- Tiny minimalist reload/arrows icon -->
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3 w-3 stroke-current">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+                <span id="btnMapAlignText">ALIGN</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -304,7 +470,7 @@
         gfm: true
       });
 
-      // i18n Translation Dictionary
+      // i18n Translation Dictionary with premium Forget & Refine & Map terms included
       const translations = {
         en: {
           subtitle: "Receiving undifferentiated thought noise, weaving relationships.",
@@ -317,11 +483,25 @@
           themeDark: "DARK MODE",
           themeLight: "LIGHT MODE",
           uploadText: "Attach Photo / Sketch / PDF (Release Media)",
-          linkPlaceholder: "Web Link (URL)"
+          linkPlaceholder: "Web Link (URL)",
+          btnRefine: "Refine",
+          btnForget: "Forget",
+          forgetConfirm: "Forget?",
+          btnYes: "Yes",
+          btnNo: "No",
+          btnCancel: "Cancel",
+          btnUpdate: "Update (Refine)",
+          weaving: "Weaving...",
+          updating: "Refining...",
+          forgotten: "Forgotten successfully",
+          refinedSuccess: "Refined successfully",
+          mapTitle: "Semantic Memory Space",
+          mapHelp: "Drag nodes to explore resonance.",
+          btnMapAlign: "RESET"
         },
         ja: {
           subtitle: "未分化の思考ノイズを受け止め、関係性を紡ぐ",
-          placeholder: "例：階段の段板強度計算。木目の『反り』を構造強度に組み込む逆限定アプローチ。不規則な溝（DMR）による摩擦と気流制御の仮説...",
+          placeholder: "例：階段の段板強度計算。木目の『反り』を構造強度に組み込む逆限定アプローチ。不規則な溝（DMR）による摩擦と気流制御 of 仮説...",
           btnSubmit: "放流（自己組織化の開始）",
           loader: "関係性を静かに紡いでいます...",
           resultTitle: "思考の軌道と創発結果",
@@ -330,11 +510,27 @@
           themeDark: "ダークモード",
           themeLight: "ライトモード",
           uploadText: "写真・スケッチ・PDFの添付（メディア放流）",
-          linkPlaceholder: "関連Webリンク (URL)"
+          linkPlaceholder: "関連Webリンク (URL)",
+          btnRefine: "推敲",
+          btnForget: "忘却",
+          forgetConfirm: "忘却しますか？",
+          btnYes: "はい",
+          btnNo: "いいえ",
+          btnCancel: "取消",
+          btnUpdate: "推敲（記憶の更新）",
+          weaving: "放流中...",
+          updating: "推敲中...",
+          forgotten: "記憶の海へ還元されました",
+          refinedSuccess: "記憶が美しく推敲されました",
+          mapTitle: "記憶共鳴空間",
+          mapHelp: "ノードをドラッグして関係性を探求",
+          btnMapAlign: "初期配置"
         }
       };
 
       let currentLang = 'en'; // English is default
+      let activeEngramId = null;
+      let isRefiningMode = false;
 
       function toggleLanguage() {
         currentLang = currentLang === 'en' ? 'ja' : 'en';
@@ -346,7 +542,19 @@
         
         document.getElementById('uiSubtitle').innerText = t.subtitle;
         document.getElementById('noiseInput').placeholder = t.placeholder;
-        document.getElementById('btnSubmitText').innerText = t.btnSubmit;
+        
+        // Dynamic submission button text according to current mode
+        if (isRefiningMode) {
+          document.getElementById('btnSubmitText').innerText = t.btnUpdate;
+        } else {
+          document.getElementById('btnSubmitText').innerText = t.btnSubmit;
+        }
+        
+        document.getElementById('btnCancelText').innerText = t.btnCancel;
+        document.getElementById('btnRefineAction').innerText = t.btnRefine;
+        document.getElementById('btnForgetAction').innerText = t.btnForget;
+        document.getElementById('uiForgetConfirmText').innerText = t.forgetConfirm;
+        
         document.getElementById('uiLoaderText').innerText = t.loader;
         document.getElementById('uiResultTitle').innerHTML = t.resultTitle;
         document.getElementById('uiFooterText').innerText = t.footer;
@@ -355,15 +563,36 @@
 
         // Dynamic labels for Multimodal Inputs
         document.getElementById('linkInput').placeholder = t.linkPlaceholder;
+        
         const uploadLabel = document.getElementById('uiUploadText');
+        const uploadButton = document.getElementById('uiUploadButton');
         const fileAttached = document.getElementById('fileAttachment').files.length > 0;
         if (!fileAttached) {
           uploadLabel.innerText = t.uploadText;
+          uploadButton.innerText = currentLang === 'en' ? "Select File" : "ファイル選択";
         }
+
+        // Memory Map labels internationalization
+        document.getElementById('uiMapTitle').innerText = t.mapTitle;
+        document.getElementById('uiMapHelp').innerText = t.mapHelp;
         
-        // Update theme toggle text according to language
-        const isDark = document.body.classList.contains('dark-theme');
-        document.getElementById('themeToggleText').innerText = isDark ? t.themeLight : t.themeDark;
+        const btnMapAlignText = document.getElementById('btnMapAlignText');
+        if (btnMapAlignText) {
+          btnMapAlignText.innerText = t.btnMapAlign;
+        } else {
+          document.getElementById('btnMapAlign').innerText = t.btnMapAlign;
+        }
+
+        // Inline Forget Confirmation dynamic text
+        const uiForgetConfirmText = document.getElementById('uiForgetConfirmText');
+        const btnForgetYes = document.getElementById('btnForgetYes');
+        const btnForgetNo = document.getElementById('btnForgetNo');
+        if (uiForgetConfirmText) uiForgetConfirmText.innerText = t.forgetConfirm;
+        if (btnForgetYes) btnForgetYes.innerText = t.btnYes;
+        if (btnForgetNo) btnForgetNo.innerText = t.btnNo;
+        
+        // Update theme toggle icon
+        updateThemeIcon();
       }
 
       // Automatically check system preference for theme
@@ -371,13 +600,24 @@
         document.body.classList.add('dark-theme');
       }
       
-      // Initial translation apply
+      // Initial translation and icon apply
       applyTranslations();
+      updateThemeIcon();
 
       function toggleTheme() {
-        const isDark = document.body.classList.toggle('dark-theme');
-        const t = translations[currentLang];
-        document.getElementById('themeToggleText').innerText = isDark ? t.themeLight : t.themeDark;
+        document.body.classList.toggle('dark-theme');
+        updateThemeIcon();
+      }
+
+      function updateThemeIcon() {
+        const isDark = document.body.classList.contains('dark-theme');
+        const iconContainer = document.getElementById('themeToggleIcon');
+        
+        // Premium fine-line SVG icons representing celestial states with smooth transition transitions
+        const sunSvg = `<svg class="w-4 h-4 transition-all duration-300" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m0 13.5V21M4.929 4.929l1.591 1.591m10.996 10.996l1.591 1.591M3 12h2.25m13.5 0H21M4.929 19.071l1.591-1.591m10.996-10.996l1.591-1.591M12 7.5a4.5 4.5 0 100 9 4.5 4.5 0 000-9z"></path></svg>`;
+        const moonSvg = `<svg class="w-4 h-4 transition-all duration-300" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z"></path></svg>`;
+        
+        iconContainer.innerHTML = isDark ? sunSvg : moonSvg;
       }
 
       const isLocal = !window.google || !window.google.script;
@@ -391,6 +631,7 @@
         const nameDisplay = document.getElementById('fileNameDisplay');
         const uploadText = document.getElementById('uiUploadText');
         const uploadIcon = document.getElementById('uiUploadIcon');
+        const uploadButton = document.getElementById('uiUploadButton');
 
         if (!file) {
           selectedFileBase64 = null;
@@ -399,6 +640,7 @@
           nameDisplay.classList.add('hidden');
           uploadText.classList.remove('hidden');
           uploadIcon.classList.remove('hidden');
+          uploadButton.classList.remove('hidden');
           return;
         }
 
@@ -414,8 +656,122 @@
           nameDisplay.classList.remove('hidden');
           uploadText.classList.add('hidden');
           uploadIcon.classList.add('hidden');
+          uploadButton.classList.add('hidden');
         };
         reader.readAsDataURL(file);
+      }
+
+      // Trigger Refinement mode (pulls state back to form fields)
+      function triggerRefine() {
+        if (!activeEngramId) return;
+        
+        const inputField = document.getElementById('noiseInput');
+        const linkField = document.getElementById('linkInput');
+        
+        // Fetch accurate engram data dynamically via getEngram to populate edit fields
+        fetch(`/api/getEngram?id=${activeEngramId}`)
+          .then(res => {
+            if (!res.ok) throw new Error("Engram not found");
+            return res.json();
+          })
+          .then(data => {
+            // Restore text inputs cleanly
+            inputField.value = data.content || "";
+            linkField.value = (data.metadata && data.metadata.linkUrl) || "";
+            
+            isRefiningMode = true;
+            
+            // Show Cancel button elegant transition
+            document.getElementById('btnCancelRefine').classList.remove('hidden');
+            
+            // Apply refined ergonomic button styling feedback
+            const btnSubmit = document.getElementById('btnSubmit');
+            btnSubmit.style.background = "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)"; // Vibrant cognitive blue
+            btnSubmit.style.color = "#ffffff";
+            
+            applyTranslations();
+            inputField.focus();
+            
+            // Scroll smoothly back to input form
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          })
+          .catch(err => {
+            console.error("Failed to restore engram for refine:", err);
+          });
+      }
+
+      // Cancel Refinement mode and reset form state
+      function cancelRefine() {
+        isRefiningMode = false;
+        
+        const inputField = document.getElementById('noiseInput');
+        const linkField = document.getElementById('linkInput');
+        inputField.value = "";
+        linkField.value = "";
+        
+        // Hide cancel button
+        document.getElementById('btnCancelRefine').classList.add('hidden');
+        
+        // Restore submit button styling
+        const btnSubmit = document.getElementById('btnSubmit');
+        btnSubmit.style.background = "";
+        btnSubmit.style.color = "";
+        
+        applyTranslations();
+      }
+
+      // Trigger Forget confirmation pill
+      function triggerForgetConfirmation() {
+        document.getElementById('btnForgetAction').classList.add('hidden');
+        document.getElementById('forgetConfirmation').classList.remove('hidden');
+      }
+
+      function cancelForget() {
+        document.getElementById('forgetConfirmation').classList.add('hidden');
+        document.getElementById('btnForgetAction').classList.remove('hidden');
+      }
+
+      // Call API to forget engram and clear associations
+      function confirmForget() {
+        if (!activeEngramId) return;
+
+        const btnSubmit = document.getElementById('btnSubmit');
+        btnSubmit.disabled = true;
+
+        fetch('/api/forgetEngram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ db_id: activeEngramId })
+        })
+        .then(res => res.json())
+        .then(data => {
+          // Successful forgetting interface transition
+          cancelForget();
+          cancelRefine(); 
+          
+          document.getElementById('resultContainer').classList.add('hidden');
+          activeEngramId = null;
+          btnSubmit.disabled = false;
+          
+          // Temporary success state for button (Quiet crimson red)
+          const btnSubmitText = document.getElementById('btnSubmitText');
+          const originalBtnText = btnSubmitText.innerText;
+          btnSubmitText.innerText = translations[currentLang].forgotten;
+          btnSubmit.style.transition = "all 0.3s ease";
+          btnSubmit.style.background = "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)";
+          btnSubmit.style.color = "#ffffff";
+          
+          setTimeout(() => {
+            btnSubmit.style.background = "";
+            btnSubmit.style.color = "";
+            btnSubmitText.innerText = originalBtnText;
+          }, 2000);
+        })
+        .catch(err => {
+          console.error("Forget request failed:", err);
+          btnSubmit.disabled = false;
+          cancelForget();
+        });
       }
 
       function submitNoise() {
@@ -431,8 +787,13 @@
         
         // 1. Loading State for Button and Loader
         btnSubmit.disabled = true;
-        const originalBtnText = btnSubmitText.innerText;
-        btnSubmitText.innerText = currentLang === 'en' ? "Weaving..." : "放流中...";
+        const originalBtnText = isRefiningMode 
+          ? (translations[currentLang].btnUpdate)
+          : (translations[currentLang].btnSubmit);
+          
+        btnSubmitText.innerText = isRefiningMode
+          ? (translations[currentLang].updating)
+          : (translations[currentLang].weaving);
         
         document.getElementById('loader').classList.remove('hidden');
         document.getElementById('resultContainer').classList.add('hidden');
@@ -448,14 +809,32 @@
           } : null
         };
 
+        // Adapt target endpoint based on refinement mode
+        let targetApi = '/api/sendNoise';
+        if (isRefiningMode && activeEngramId) {
+          targetApi = '/api/updateEngram';
+          payload.db_id = activeEngramId;
+        }
+
         if (isLocal) {
-          fetch('/api/sendNoise', {
+          fetch(targetApi, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           })
           .then(res => res.json())
           .then(data => {
+            // Clean up refinement mode after update completes
+            if (isRefiningMode) {
+              isRefiningMode = false;
+              document.getElementById('btnCancelRefine').classList.add('hidden');
+              btnSubmit.style.background = "";
+              btnSubmit.style.color = "";
+            }
+            
+            // Update active engram ID reference
+            activeEngramId = data.db_id || null;
+            
             handleResponse(data, inputField, linkField, btnSubmit, btnSubmitText, originalBtnText);
           })
           .catch(err => {
@@ -490,12 +869,17 @@
         const metaContainer = document.getElementById('resultMetadata');
         if (data.metadata) {
           const m = data.metadata;
-          metaContainer.innerHTML = `${m.model} &nbsp;·&nbsp; entropy: ${m.entropy.toFixed(2)} &nbsp;·&nbsp; scope: ${m.scope.toLowerCase()}`;
+          metaContainer.innerHTML = `entropy: ${(m.entropy || 0.5).toFixed(2)} &nbsp;·&nbsp; scope: ${(m.scope || 'PERSONAL').toLowerCase()}`;
           metaContainer.classList.remove('hidden');
         } else {
           metaContainer.classList.add('hidden');
         }
         
+        // Capture active ID dynamically from server response metadata/body if present
+        if (data.db_id) {
+          activeEngramId = data.db_id;
+        }
+
         document.getElementById('resultContainer').classList.remove('hidden');
         
         // Clear text area & links elegantly
@@ -510,6 +894,7 @@
         document.getElementById('fileNameDisplay').classList.add('hidden');
         document.getElementById('uiUploadText').classList.remove('hidden');
         document.getElementById('uiUploadIcon').classList.remove('hidden');
+        document.getElementById('uiUploadButton').classList.remove('hidden');
         
         // Temporary success state for button
         btnSubmitText.innerText = currentLang === 'en' ? "Released Successfully" : "記憶の海へ放流完了";
@@ -539,6 +924,694 @@
         btnSubmit.style.background = "";
         btnSubmit.style.color = "";
       }
+
+      // ----------------------------------------------------
+      // 🔮 Class SemanticMapEngine (HTML5 Canvas Force-Directed Engine)
+      // ----------------------------------------------------
+      class SemanticMapEngine {
+        constructor(canvasId) {
+          this.canvas = document.getElementById(canvasId);
+          if (!this.canvas) return;
+          this.ctx = this.canvas.getContext('2d');
+          
+          this.nodes = [];
+          this.links = [];
+          this.draggedNode = null;
+          this.hoveredNode = null;
+          
+          this.width = this.canvas.width;
+          this.height = this.canvas.height;
+          
+          this.k = 45; // Spring base force constant
+          this.repulsionConstant = 1200; // Repulsion force constant
+          this.damping = 0.82; // Velocity damping ratio
+          
+          // 3D Camera Controls State
+          this.zoom = 1.0;
+          this.cameraAngleX = 0; // Pitch
+          this.cameraAngleY = 0; // Yaw
+          this.panX = 0;
+          this.panY = 0;
+          
+          // Interaction tracking
+          this.isDraggingCamera = false;
+          this.isPanningCamera = false;
+          this.lastMouseX = 0;
+          this.lastMouseY = 0;
+          this.lastTouchDist = 0; // For pinch-to-zoom
+          
+          this.initEvents();
+          this.startSimulation();
+        }
+
+        // Load all engrams and metabolise them into map layout
+        loadAll() {
+          fetch('/api/getAllEngrams')
+            .then(res => res.json())
+            .then(data => {
+              this.buildNetwork(data);
+            })
+            .catch(err => {
+              console.error("Failed to load map memory space:", err);
+            });
+        }
+
+        buildNetwork(engrams) {
+          const oldNodesMap = new Map(this.nodes.map(n => [n.id, n]));
+          this.nodes = [];
+          this.links = [];
+          
+          if (!engrams || engrams.length === 0) return;
+          
+          // 1. Create nodes elegantly
+          engrams.forEach((e, idx) => {
+            const id = e._id.toString();
+            let x = this.width / 2 + Math.cos(idx) * 80;
+            let y = this.height / 2 + Math.sin(idx) * 80;
+            let z = Math.random() * 160 - 80;
+            
+            // Retain positions of old nodes if they existed to keep visual continuity
+            if (oldNodesMap.has(id)) {
+              x = oldNodesMap.get(id).x;
+              y = oldNodesMap.get(id).y;
+              z = oldNodesMap.get(id).z !== undefined ? oldNodesMap.get(id).z : z;
+            }
+            
+            // Generate clean node metadata/summary
+            let text = e.content || "";
+            if (text.length > 25) text = text.substring(0, 22) + "...";
+            
+            this.nodes.push({
+              id: id,
+              text: text,
+              fullText: e.content || "",
+              x: x,
+              y: y,
+              z: z,
+              vx: 0,
+              vy: 0,
+              vz: 0,
+              radius: id === activeEngramId ? 18 : 12,
+              model: e.metadata && e.metadata.model || "",
+              tags: e.metadata && e.metadata.tags || []
+            });
+          });
+          
+          // 2. Establish spring links from related_links
+          engrams.forEach(e => {
+            const sourceId = e._id.toString();
+            if (e.related_links) {
+              e.related_links.forEach(link => {
+                const targetId = link.to_engram_id.toString();
+                
+                // Avoid double listing links in force-directed layout
+                const linkExists = this.links.some(l => 
+                  (l.source === sourceId && l.target === targetId) || 
+                  (l.source === targetId && l.target === sourceId)
+                );
+                
+                if (!linkExists) {
+                  this.links.push({
+                    source: sourceId,
+                    target: targetId,
+                    strength: link.strength
+                  });
+                }
+              });
+            }
+          });
+        }
+
+        // Align all nodes evenly to avoid clustering
+        resetPositions() {
+          this.nodes.forEach((node, idx) => {
+            const angle = (idx / this.nodes.length) * Math.PI * 2;
+            const radius = Math.min(this.width, this.height) * 0.35;
+            node.x = this.width / 2 + Math.cos(angle) * radius;
+            node.y = this.height / 2 + Math.sin(angle) * radius;
+            node.z = Math.sin(angle * 2) * 50; // Asymmetrical Z depth too
+            node.vx = 0;
+            node.vy = 0;
+            node.vz = 0;
+          });
+          // Reset camera elegantly
+          this.zoom = 1.0;
+          this.cameraAngleX = 0;
+          this.cameraAngleY = 0;
+          this.panX = 0;
+          this.panY = 0;
+        }
+
+        // Calculate and apply force-directed steps in 3D Perspective space
+        updatePhysics() {
+          if (this.nodes.length === 0) return;
+          
+          const centerX = this.width / 2;
+          const centerY = this.height / 2;
+          const centerZ = 0;
+          
+          // Slow 3D rotation self-spinning around Y axis (creates subtle perspective depth drift)
+          const angle = 0.0015; // Slow ambient spin
+          const cosA = Math.cos(angle);
+          const sinA = Math.sin(angle);
+          this.nodes.forEach(n => {
+            if (n === this.draggedNode) return;
+            const rx = n.x - centerX;
+            const rz = n.z - centerZ;
+            n.x = centerX + (rx * cosA - rz * sinA);
+            n.z = centerZ + (rz * cosA + rx * sinA);
+          });
+          
+          // A. Node Attraction to Center (keeps network bounded & active node focused in center)
+          this.nodes.forEach(n => {
+            if (n === this.draggedNode) return;
+            
+            const isActive = n.id === activeEngramId;
+            let gravityStrength = 0.005;
+            
+            // Focus attraction: pull active node and its neighbors closer to center
+            if (activeEngramId) {
+              if (isActive) {
+                gravityStrength = 0.025; // Pull selected node strongly to the center
+              } else {
+                // Check if directly linked to active node
+                const isLinked = this.links.some(l => 
+                  (l.source === n.id && l.target === activeEngramId) || 
+                  (l.target === n.id && l.source === activeEngramId)
+                );
+                if (isLinked) {
+                  gravityStrength = 0.012; // Pull related resonant nodes closer
+                } else {
+                  gravityStrength = 0.002; // Drift unrelated nodes to outer boundaries
+                }
+              }
+            }
+            
+            const dx = centerX - n.x;
+            const dy = centerY - n.y;
+            const dz = centerZ - n.z;
+            n.vx += dx * gravityStrength;
+            n.vy += dy * gravityStrength;
+            n.vz += dz * gravityStrength;
+          });
+          
+          // B. Node-Node Coulomb Repulsion (avoids overlaps)
+          for (let i = 0; i < this.nodes.length; i++) {
+            const nA = this.nodes[i];
+            for (let j = i + 1; j < this.nodes.length; j++) {
+              const nB = this.nodes[j];
+              
+              const dx = nB.x - nA.x;
+              const dy = nB.y - nA.y;
+              const dz = nB.z - nA.z;
+              const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+              
+              if (dist < 200) {
+                const force = this.repulsionConstant / (dist * dist);
+                const fx = (dx / dist) * force;
+                const fy = (dy / dist) * force;
+                const fz = (dz / dist) * force;
+                
+                if (nA !== this.draggedNode) {
+                  nA.vx -= fx;
+                  nA.vy -= fy;
+                  nA.vz -= fz;
+                }
+                if (nB !== this.draggedNode) {
+                  nB.vx += fx;
+                  nB.vy += fy;
+                  nB.vz += fz;
+                }
+              }
+            }
+          }
+          
+          // C. Hooke Spring Attraction along Semantic links (pulls similar thoughts closer)
+          this.links.forEach(l => {
+            const nA = this.nodes.find(n => n.id === l.source);
+            const nB = this.nodes.find(n => n.id === l.target);
+            if (!nA || !nB) return;
+            
+            const dx = nB.x - nA.x;
+            const dy = nB.y - nA.y;
+            const dz = nB.z - nA.z;
+            const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+            
+            // Rest length of spring is proportional to inverse similarity
+            const restLength = 100 * (1 - l.strength * 0.5); 
+            const force = 0.03 * (dist - restLength);
+            const fx = (dx / dist) * force;
+            const fy = (dy / dist) * force;
+            const fz = (dz / dist) * force;
+            
+            if (nA !== this.draggedNode) {
+              nA.vx += fx;
+              nA.vy += fy;
+              nA.vz += fz;
+            }
+            if (nB !== this.draggedNode) {
+              nB.vx -= fx;
+              nB.vy -= fy;
+              nB.vz -= fz;
+            }
+          });
+          
+          // E. Apply Velocity & Damping elegantly
+          this.nodes.forEach(n => {
+            if (n === this.draggedNode) return;
+            n.x += n.vx;
+            n.y += n.vy;
+            n.z += n.vz;
+            n.vx *= this.damping;
+            n.vy *= this.damping;
+            n.vz *= this.damping;
+            
+            // Boundary constraints with padding for text labels on top/bottom
+            const padX = n.radius + 16;
+            const padYTop = n.radius + 24;     // Space for top text label
+            const padYBottom = n.radius + 24;  // Space for bottom tags label
+            n.x = Math.max(padX, Math.min(this.width - padX, n.x));
+            n.y = Math.max(padYTop, Math.min(this.height - padYBottom, n.y));
+            n.z = Math.max(-150, Math.min(150, n.z)); // Depth boundary
+          });
+        }
+
+        draw() {
+          this.ctx.clearRect(0, 0, this.width, this.height);
+          
+          const centerX = this.width / 2;
+          const centerY = this.height / 2;
+          const focus = 300; // Focal distance for 3D Perspective projection
+          
+          // Sync node radius highlights based on active node
+          this.nodes.forEach(n => {
+            n.radius = n.id === activeEngramId ? 18 : 12;
+          });
+          
+          // Project 3D coordinate with camera rotation, pan and zoom
+          const project = (n) => {
+            // Subtract center
+            let rx = n.x - centerX;
+            let ry = n.y - centerY;
+            let rz = n.z;
+            
+            // 1. Rotate around Y-axis (Yaw)
+            const cosY = Math.cos(this.cameraAngleY);
+            const sinY = Math.sin(this.cameraAngleY);
+            let x1 = rx * cosY - rz * sinY;
+            let z1 = rz * cosY + rx * sinY;
+            
+            // 2. Rotate around X-axis (Pitch)
+            const cosX = Math.cos(this.cameraAngleX);
+            const sinX = Math.sin(this.cameraAngleX);
+            let y2 = ry * cosX - z1 * sinX;
+            let z2 = z1 * cosX + ry * sinX;
+            
+            // 3. Perspective project & apply Zoom
+            const scale = (focus / (focus + z2)) * this.zoom;
+            
+            // 4. Translate back to center and apply Pan
+            return {
+              x: centerX + x1 * scale + this.panX,
+              y: centerY + y2 * scale + this.panY,
+              scale: scale
+            };
+          };
+          
+          // 1. Draw Links (Weaved paths of light with perspective and Wabi-Sabi color codes)
+          this.links.forEach(l => {
+            const nA = this.nodes.find(n => n.id === l.source);
+            const nB = this.nodes.find(n => n.id === l.target);
+            if (!nA || !nB) return;
+            
+            const pA = project(nA);
+            const pB = project(nB);
+            
+            const isHighlight = nA.id === activeEngramId || nB.id === activeEngramId;
+            
+            this.ctx.beginPath();
+            this.ctx.moveTo(pA.x, pA.y);
+            this.ctx.lineTo(pB.x, pB.y);
+            
+            // Perspective average scale
+            const avgScale = (pA.scale + pB.scale) / 2;
+            
+            const isDark = document.body.classList.contains('dark-theme');
+            let colorStr = "";
+            
+            if (isHighlight) {
+              colorStr = isDark ? "rgba(96, 165, 250, " : "rgba(37, 99, 235, "; // Vibrant blue highlight thread
+            } else {
+              // Wabi-Sabi low-saturation color coding based on similarity strength
+              if (l.strength >= 0.85) {
+                // 淡青磁 (ウスアオジ) - smoky mint blue-green
+                colorStr = isDark ? "rgba(163, 197, 191, " : "rgba(110, 155, 146, ";
+              } else if (l.strength >= 0.70) {
+                // 白菫 (シロスミレ) - smoky pale lavender
+                colorStr = isDark ? "rgba(182, 185, 212, " : "rgba(132, 137, 175, ";
+              } else {
+                // 薄鈍 (ウスネズ) - smoky pale gray
+                colorStr = isDark ? "rgba(148, 155, 163, " : "rgba(115, 122, 130, ";
+              }
+            }
+            
+            const alpha = isHighlight ? 0.75 : (l.strength * 0.35);
+            this.ctx.strokeStyle = colorStr + (alpha * avgScale) + ")";
+            this.ctx.lineWidth = (isHighlight ? 1.75 : 1.0) * avgScale;
+            
+            // Dotted pattern for light resonance
+            if (!isHighlight) {
+              this.ctx.setLineDash([2 * avgScale, 4 * avgScale]);
+            } else {
+              this.ctx.setLineDash([]);
+            }
+            this.ctx.stroke();
+          });
+          this.ctx.setLineDash([]); // Reset
+          
+          // Sort nodes by Z depth descending (paint back-to-front / painter's algorithm)
+          const sortedNodes = [...this.nodes].sort((a, b) => b.z - a.z);
+          
+          // 2. Draw Nodes (Memory cells with dynamic 3D scale and aura)
+          sortedNodes.forEach(n => {
+            const proj = project(n);
+            const scale = proj.scale;
+            
+            const isActive = n.id === activeEngramId;
+            const isHover = n === this.hoveredNode;
+            
+            this.ctx.beginPath();
+            this.ctx.arc(proj.x, proj.y, n.radius * scale, 0, Math.PI * 2);
+            
+            const isDark = document.body.classList.contains('dark-theme');
+            
+            // Premium micro-shadow/blur aura for active memory nodes
+            if (isActive) {
+              this.ctx.shadowColor = isDark ? "rgba(96, 165, 250, 0.4)" : "rgba(37, 99, 235, 0.25)";
+              this.ctx.shadowBlur = 12 * scale;
+            } else {
+              this.ctx.shadowBlur = 0;
+            }
+            
+            // Fill color matching premium glassmorphism theme with 3D scale opacity
+            const nodeAlpha = (isHover || isActive) ? 1.0 : (0.55 * scale);
+            if (isActive) {
+              this.ctx.fillStyle = isDark ? `rgba(30, 41, 59, ${nodeAlpha})` : `rgba(255, 255, 255, ${nodeAlpha})`;
+            } else if (isHover) {
+              this.ctx.fillStyle = isDark ? `rgba(45, 55, 72, ${nodeAlpha})` : `rgba(240, 244, 248, ${nodeAlpha})`;
+            } else {
+              this.ctx.fillStyle = isDark ? `rgba(20, 24, 37, ${nodeAlpha})` : `rgba(255, 255, 255, ${nodeAlpha})`;
+            }
+            this.ctx.fill();
+            
+            // Outline border with 3D scale
+            if (isActive) {
+              this.ctx.strokeStyle = isDark ? `rgba(96, 165, 250, ${nodeAlpha})` : `rgba(37, 99, 235, ${nodeAlpha})`;
+              this.ctx.lineWidth = 2.0 * scale;
+            } else {
+              this.ctx.strokeStyle = isDark ? `rgba(160, 174, 192, ${0.4 * scale})` : `rgba(113, 128, 150, ${0.45 * scale})`;
+              this.ctx.lineWidth = 1.25 * scale;
+            }
+            this.ctx.stroke();
+            
+            this.ctx.shadowBlur = 0; // Reset
+            
+            // Render Elegant Labels for nodes with 3D projection scaling
+            if (isHover || isActive) {
+              const fontSize = (0.65 * scale).toFixed(2);
+              this.ctx.font = `300 ${fontSize}rem 'Noto Serif JP', serif`;
+              this.ctx.fillStyle = isDark ? `rgba(241, 245, 249, ${nodeAlpha})` : `rgba(30, 41, 59, ${nodeAlpha})`;
+              this.ctx.textAlign = "center";
+              this.ctx.fillText(n.text, proj.x, proj.y - (n.radius * scale) - 8);
+              
+              // Tags overview in small font if hovered
+              if (isHover && n.tags && n.tags.length > 0) {
+                const tagStr = n.tags.slice(0, 2).map(t => `#${t.toLowerCase()}`).join(" ");
+                const tagFontSize = (0.55 * scale).toFixed(2);
+                this.ctx.font = `200 ${tagFontSize}rem 'Noto Serif JP', serif`;
+                this.ctx.fillStyle = isDark ? `rgba(148, 163, 184, ${nodeAlpha})` : `rgba(100, 116, 139, ${nodeAlpha})`;
+                this.ctx.fillText(tagStr, proj.x, proj.y + (n.radius * scale) + 14);
+              }
+            } else {
+              // Minimal tiny core circle for non-active nodes to highlight clean architecture
+              this.ctx.beginPath();
+              this.ctx.arc(proj.x, proj.y, 2.5 * scale, 0, Math.PI * 2);
+              this.ctx.fillStyle = isDark ? `rgba(160, 174, 192, ${0.6 * scale})` : `rgba(113, 128, 150, ${0.6 * scale})`;
+              this.ctx.fill();
+            }
+          });
+        }
+
+        initEvents() {
+          // PC Scroll Wheel (Zoom)
+          this.canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomFactor = 1.05;
+            if (e.deltaY < 0) {
+              this.zoom = Math.min(3.0, this.zoom * zoomFactor);
+            } else {
+              this.zoom = Math.max(0.4, this.zoom / zoomFactor);
+            }
+          }, { passive: false });
+
+          const getMousePos = (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+              x: (clientX - rect.left) * (this.width / rect.width),
+              y: (clientY - rect.top) * (this.height / rect.height),
+              clientX: clientX,
+              clientY: clientY
+            };
+          };
+
+          const findNodeAt = (pos) => {
+            const centerX = this.width / 2;
+            const centerY = this.height / 2;
+            const focus = 300;
+            return this.nodes.find(n => {
+              // Same project math to align hover hit test
+              let rx = n.x - centerX;
+              let ry = n.y - centerY;
+              let rz = n.z;
+              const cosY = Math.cos(this.cameraAngleY);
+              const sinY = Math.sin(this.cameraAngleY);
+              let x1 = rx * cosY - rz * sinY;
+              let z1 = rz * cosY + rx * sinY;
+              const cosX = Math.cos(this.cameraAngleX);
+              const sinX = Math.sin(this.cameraAngleX);
+              let y2 = ry * cosX - z1 * sinX;
+              let z2 = z1 * cosX + ry * sinX;
+              const scale = (focus / (focus + z2)) * this.zoom;
+              const px = centerX + x1 * scale + this.panX;
+              const py = centerY + y2 * scale + this.panY;
+              
+              const dx = px - pos.x;
+              const dy = py - pos.y;
+              return Math.sqrt(dx * dx + dy * dy) <= (n.radius * scale + 8);
+            });
+          };
+
+          // Mouse/Touch Down
+          const onDown = (e) => {
+            const pos = getMousePos(e);
+            
+            // Check if touch is multi-touch (2 fingers) for Pinch-to-Zoom
+            if (e.touches && e.touches.length === 2) {
+              this.draggedNode = null;
+              this.isDraggingCamera = false;
+              this.isPanningCamera = true; // Panning and zooming simultaneously
+              
+              const dx = e.touches[0].clientX - e.touches[1].clientX;
+              const dy = e.touches[0].clientY - e.touches[1].clientY;
+              this.lastTouchDist = Math.sqrt(dx * dx + dy * dy) || 1;
+              this.lastMouseX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+              this.lastMouseY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+              if (e.cancelable) e.preventDefault();
+              return;
+            }
+            
+            const node = findNodeAt(pos);
+            if (node) {
+              this.draggedNode = node;
+              node.vx = 0;
+              node.vy = 0;
+              node.vz = 0;
+              
+              activeEngramId = node.id;
+              this.displaySelectedEngram(node);
+            } else {
+              // Clicked background: trigger camera rotation or panning
+              this.lastMouseX = pos.clientX;
+              this.lastMouseY = pos.clientY;
+              
+              // Right click (button === 2) or Shift-key click trigger panning, left click triggers orbit
+              if (e.button === 2 || e.shiftKey) {
+                this.isPanningCamera = true;
+              } else {
+                this.isDraggingCamera = true;
+              }
+            }
+          };
+
+          // Mouse/Touch Move
+          const onMove = (e) => {
+            const pos = getMousePos(e);
+            
+            // Handle multi-touch pinch to zoom & pan
+            if (e.touches && e.touches.length === 2 && this.isPanningCamera) {
+              const dx = e.touches[0].clientX - e.touches[1].clientX;
+              const dy = e.touches[0].clientY - e.touches[1].clientY;
+              const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+              
+              // Apply Zoom based on pinch distance delta
+              const scaleFactor = dist / this.lastTouchDist;
+              this.zoom = Math.max(0.4, Math.min(3.0, this.zoom * (1 + (scaleFactor - 1) * 0.4)));
+              this.lastTouchDist = dist;
+              
+              // Apply Pan based on pinch mid-point movement
+              const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+              const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+              this.panX += (midX - this.lastMouseX) * 0.75;
+              this.panY += (midY - this.lastMouseY) * 0.75;
+              this.lastMouseX = midX;
+              this.lastMouseY = midY;
+              return;
+            }
+            
+            if (this.draggedNode) {
+              // Dragging node: project screen cursor movement back into 3D node coordinate
+              // For simplicity, n.z is preserved and x/y are updated according to inverse zoom scale
+              const centerX = this.width / 2;
+              const centerY = this.height / 2;
+              const focus = 300;
+              
+              // Use camera angles to apply drag mapping correctly in rotated 3D space
+              const cosY = Math.cos(-this.cameraAngleY);
+              const sinY = Math.sin(-this.cameraAngleY);
+              const cosX = Math.cos(-this.cameraAngleX);
+              const sinX = Math.sin(-this.cameraAngleX);
+              
+              const scale = (focus / (focus + this.draggedNode.z)) * this.zoom;
+              const dxScreen = (pos.x - centerX - this.panX) / scale;
+              const dyScreen = (pos.y - centerY - this.panY) / scale;
+              
+              // Apply simple inverse 3D rotations so dragged node aligns precisely under cursor
+              const dyRot = dyScreen * cosX;
+              const dzRot = -dyScreen * sinX;
+              
+              this.draggedNode.x = centerX + (dxScreen * cosY - dzRot * sinY);
+              this.draggedNode.y = centerY + dyRot;
+              this.draggedNode.vx = 0;
+              this.draggedNode.vy = 0;
+              this.draggedNode.vz = 0;
+            } else if (this.isDraggingCamera) {
+              // Orbit Camera rotation
+              const dx = pos.clientX - this.lastMouseX;
+              const dy = pos.clientY - this.lastMouseY;
+              this.cameraAngleY += dx * 0.006;
+              this.cameraAngleX = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, this.cameraAngleX - dy * 0.006));
+              this.lastMouseX = pos.clientX;
+              this.lastMouseY = pos.clientY;
+            } else if (this.isPanningCamera) {
+              // Pan camera movement
+              const dx = pos.clientX - this.lastMouseX;
+              const dy = pos.clientY - this.lastMouseY;
+              this.panX += dx * 0.75;
+              this.panY += dy * 0.75;
+              this.lastMouseX = pos.clientX;
+              this.lastMouseY = pos.clientY;
+            } else {
+              // Idle hover node check
+              const hover = findNodeAt(pos);
+              if (hover !== this.hoveredNode) {
+                this.hoveredNode = hover;
+                this.canvas.style.cursor = hover ? "grab" : (e.touches ? "default" : "grab");
+              }
+            }
+            if (e.touches && (this.draggedNode || this.isDraggingCamera || this.isPanningCamera)) {
+              // Prevent browser screen bounce/refresh while actively interacting with canvas
+              if (e.cancelable) e.preventDefault();
+            }
+          };
+
+          // Mouse/Touch Up
+          const onUp = () => {
+            this.draggedNode = null;
+            this.isDraggingCamera = false;
+            this.isPanningCamera = false;
+            this.lastTouchDist = 0;
+          };
+
+          // Prevent Context Menu on canvas for right click panning
+          this.canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+          this.canvas.addEventListener('mousedown', onDown);
+          this.canvas.addEventListener('mousemove', onMove);
+          window.addEventListener('mouseup', onUp);
+
+          this.canvas.addEventListener('touchstart', onDown, { passive: false });
+          this.canvas.addEventListener('touchmove', onMove, { passive: false });
+          window.addEventListener('touchend', onUp);
+        }
+
+        // Fetch detailed engram path and display in form container in-sync!
+        displaySelectedEngram(node) {
+          document.getElementById('loader').classList.remove('hidden');
+          document.getElementById('resultContainer').classList.add('hidden');
+          
+          fetch(`/api/getEngram?id=${node.id}`)
+            .then(res => res.json())
+            .then(data => {
+              document.getElementById('loader').classList.add('hidden');
+              
+              const contentContainer = document.getElementById('resultContent');
+              
+              // Build dynamic explanation preview
+              let mdText = `### ${currentLang === 'ja' ? '記憶の共鳴詳細' : 'Resonant Memory Node Details'}\n\n`;
+              mdText += `${data.content}\n\n`;
+              
+              if (data.related_links && data.related_links.length > 0) {
+                mdText += `\n---\n#### ${currentLang === 'ja' ? '紡がれている関係性' : 'Woven Relationships'}\n`;
+                data.related_links.forEach((link, idx) => {
+                  mdText += `* **[Node]** similarity: \`${link.strength.toFixed(2)}\` | ID: \`${link.to_engram_id.substring(0,8)}...\`\n  * *Context*: ${link.reason_of_connection}\n`;
+                });
+              }
+              
+              contentContainer.innerHTML = marked.parse(mdText);
+
+              // Render metadata signature quietly
+              const metaContainer = document.getElementById('resultMetadata');
+              if (data.metadata) {
+                const m = data.metadata;
+                metaContainer.innerHTML = `entropy: ${(m.entropy_score || 0.5).toFixed(2)} &nbsp;·&nbsp; scope: ${(m.scope || 'PERSONAL').toLowerCase()}`;
+                metaContainer.classList.remove('hidden');
+              } else {
+                metaContainer.classList.add('hidden');
+              }
+              
+              document.getElementById('resultContainer').classList.remove('hidden');
+            })
+            .catch(err => {
+              console.error("Failed to load engram node detail view:", err);
+              document.getElementById('loader').classList.add('hidden');
+            });
+        }
+
+        startSimulation() {
+          const loop = () => {
+            this.updatePhysics();
+            this.draw();
+            requestAnimationFrame(loop);
+          };
+          requestAnimationFrame(loop);
+        }
+      }
+
+      // Initialize mapping engine globally
+      const mapEngine = new SemanticMapEngine('memoryMapCanvas');
+      mapEngine.loadAll();
     </script>
   </body>
 </html>
