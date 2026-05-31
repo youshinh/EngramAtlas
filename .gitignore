@@ -29,3 +29,8 @@ Thumbs.db
 
 # Scratch / temporary debug scripts
 scratch/
+
+# Internal design documents (not for public repo)
+*.txt
+specs/
+

@@ -1,5 +1,4 @@
 # EngramAtlas
-計算生命体進化エンジン 〜 自己組織化する「あいだ」の動的平衡メモリ 〜
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Google Cloud](https://img.shields.io/badge/Google%20Cloud-Hackathon%202026-4285F4?logo=google-cloud&logoColor=white)](https://cloud.google.com)
@@ -7,7 +6,7 @@
 [![Gemini](https://img.shields.io/badge/Gemini-2.5%20Flash-8E75B2?logo=google&logoColor=white)](https://ai.google.dev)
 [![Node.js](https://img.shields.io/badge/Node.js-v18%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 
-> **Google Cloud Rapid Agent Hackathon 2026 — MongoDB Track 提出作品**
+> **Google Cloud Rapid Agent Hackathon 2026 — MongoDB Track**
 
 ---
 
@@ -15,68 +14,126 @@
 
 | | |
 |---|---|
-| **Demo Video** | *(coming soon — 3-min walkthrough)* |
+| **Demo Video** | *(coming soon)* |
 | **Devpost** | *(coming soon)* |
 
 ---
 
-## 1. 思想と第一原理（Philosophy & First Principles）
+## Overview
 
-従来のAIノートやRAG（Retrieval-Augmented Generation）システムは、人間が構造化したデータを「書庫」として静的に保存するだけのものでした。これは情報の死後硬直であり、エントロピーの増大に抗えず、いずれ陳腐化して役に立たなくなる「静的地獄」です。
+EngramAtlas is a self-organizing knowledge engine that accepts unstructured thought inputs — text, images, PDFs, or web URLs — and autonomously builds a semantic memory network in MongoDB Atlas.
 
-**EngramAtlas** は、人間から吐き出される曖昧な「思考のノイズ（未分化の殴り書き、スケッチ、音声、Webリンクの断片）」を細胞膜（界面＝インターフェース）として受け止め、それらの「あいだ（関係性）」を自律的に推論し、ドキュメントデータベースの海（MongoDB Atlas）の中で動的なリンクを結びつけながら、自己組織化（代謝）していく計算生命体です。
+Rather than storing information in static folders, EngramAtlas treats each new input as a node in a living graph. The system computes vector embeddings via the Gemini API, searches past entries for semantic similarity, and writes bidirectional relationship links between related memories — all without human intervention at each step.
 
-- **物体ではなく「関係性の規約」**: 具体的なデータそのものではなく、それらがどう結びついているか（Edge）をデータベース内の動的JSONでプロットします。
-- **「逆限定」の寄り添い**: 過去に作られた記憶（Engram）が明日の思考を逆限定し、新しいアイデアの創発を促します。
-- **不規則な凹凸（ノイズ）の受容**: 微細な凹凸による流体抵抗削減（DMR）の哲学に基づき、あえてデータ内のゆらぎや一時的エラーを許容し、強固なルールで縛らない「やわらかな記憶」を構築します。
+The project is built on the philosophy that the *relationships between ideas* are more valuable than the ideas themselves.
 
 ---
 
-## 2. システムアーキテクチャ（System Architecture）
-
-EngramAtlas は、Google Cloud が提供する最新の **Managed Agents API (Antigravity-preview)** と **MongoDB Atlas MCP サーバー** を統合し、フロントエンドに Google Apps Script (GAS) または極限の和モダンWeb界面を配した超軽量サーバーレス構成を採用しています。
+## Architecture
 
 ```
-[ 人間：殴り書き、カメラ写真、Webリンクの断片 ]
+[ User Input: text / image / PDF / URL ]
                 │
-                ▼ (Web界面 / GAS Web App)
-[ 界面：極限の和モダン・ミニマル Serifs UI ]
+                ▼  POST /api/sendNoise
+[ Node.js + Express (server.js) ]
                 │
-                ▼ (API呼び出し: /api/sendNoise)
-[ 脳・推論：Managed Agents (Antigravity-preview) ] ────┐ (自律計画とPython実行)
-                │                                       │
-                ├───────────────────────────────────────┤
-                ▼ (MongoDB MCP Server)                  ▼ (Code Execution)
-[ 記憶：MongoDB Atlas (engrams コレクション) ]    [ サンドボックス内 Python ]
- (3,072次元ベクトル search & 自己組織化双方向リンク)     (セマンティクス翻訳・代謝)
+        ┌───────┴────────┐
+        ▼                ▼
+[ Gemini API ]    [ MongoDB Atlas ]
+  - Text generation     - engrams collection
+  - Embeddings (3,072d) - Vector similarity search
+  - Multimodal Vision   - Bidirectional related_links
+  - URL summarization   - Evolution history log
+```
+
+**Key design decisions:**
+- No external orchestration layer; the agent logic runs directly in Node.js
+- MongoDB is used both as a document store and as the semantic graph backbone
+- The system falls back to an in-memory mock store when MongoDB is unavailable, so it runs without any external dependencies for local testing
+
+---
+
+## Features
+
+### Multimodal Input Translation
+Images and PDFs are passed through Gemini's multimodal API, which extracts the semantic content as structured text. Web URLs are fetched server-side and summarized. All modalities are merged into a single text representation before embedding, enabling cross-modal similarity search.
+
+### Semantic Self-Organization
+Each new input is embedded into a 3,072-dimensional vector using `gemini-embedding-2-preview`. The system scans past entries for cosine similarity above a configurable threshold (default: 0.55) and writes bidirectional `related_links` entries to both documents, including an AI-generated explanation of why the two memories are connected.
+
+### Autonomous Forget
+Inputs containing deletion intent keywords (e.g., "forget", "delete", "忘却") trigger an autonomous forget flow: the system identifies the most semantically similar recent entry and removes it from the database, cleaning up all dangling references from connected nodes via MongoDB's `$pull` operator.
+
+### Resilience and Self-Healing
+Transient errors (rate limits, network timeouts) are classified and handled with exponential backoff retries (up to 3 attempts, starting at 500ms). Fatal errors are propagated immediately. The self-healing trace is included in the response for observability.
+
+---
+
+## Document Schema
+
+Each memory (Engram) is stored as a flexible JSON document in the `engrams` collection:
+
+```json
+{
+  "_id": "ObjectId",
+  "content": "The merged text representation of the input",
+  "raw_input_type": "text | image | pdf | url | mixed",
+  "created_at": "ISODate",
+  "metadata": {
+    "scope": "PERSONAL",
+    "tags": ["..."],
+    "entropy_score": 0.5,
+    "attachment": { "name": "...", "mimeType": "..." },
+    "linkUrl": "https://..."
+  },
+  "vector_embeddings": [0.012, -0.045, "...(3072 values)"],
+  "related_links": [
+    {
+      "to_engram_id": "ObjectId",
+      "strength": 0.82,
+      "reason_of_connection": "AI-generated explanation"
+    }
+  ],
+  "evolution_history": [
+    {
+      "timestamp": "ISODate",
+      "action": "create | self_organize_link | self_heal_success",
+      "comment": "..."
+    }
+  ]
+}
 ```
 
 ---
 
-## 3. 技術的独自性（Technical Edge）
+## API Endpoints
 
-### 3.1 Managed Agents & MongoDB MCP の自律結合（Move Beyond Chat）
-単なる1回きりのQ&Aチャットボットを完全に超越しています。人間から入力が届くたびに、Managed Agentが「計画（Planning）➔ 実行（Managed Action）」を自律展開。MongoDB Atlas MCPを自律操作して、過去の記憶との類似性検索、新規ドキュメントの挿入（C）、および過去と新規ドキュメントの `related_links`（双方向の参照リンク）の書き換え（U）をマルチステップで実行し、データベース自体を代謝させます。
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/` | Serves the web UI |
+| `POST` | `/api/sendNoise` | Ingest a new thought, run self-organization |
+| `POST` | `/api/updateEngram` | Refine an existing Engram by ID |
+| `POST` | `/api/forgetEngram` | Delete an Engram and clean up references |
+| `GET` | `/api/getAllEngrams` | Retrieve all Engrams (for visualization) |
 
-### 3.2 マルチモーダル代謝（画像・PDF・Webリンクの自律翻訳）
-画像やファイルを直接ベクトル化して検索する手法では、画像とテキスト間の深いレベルでの「意味的共鳴」は得られません。
-EngramAtlas は、添付されたカメラ写真やPDFを一度 **Gemini のマルチモーダル（Vision）理解力**に引き渡し、「画像に潜むアイデア、物理的な不均質特性（木目や反り）、未完のデザイン意図」を日本語または英語で1〜2段落の「思考ノイズ（構造化テキスト）」へと自律言語化（翻訳）します。
-Webリンク（URL）についても、サーバーサイドでクリーンにフェッチした情報を要約代謝。
-これらを元の殴り書きとマージした上で、最新の `gemini-embedding-2-preview` により **3,072次元のベクトル** へと射影。これにより、画像とテキストの意味的な結びつきを共通のベクトル空間で完璧に交差共鳴させます。
-
-### 3.3 自律回復とトリアージ（Resilience & Self-Healing）
-一時的なネットワークの瞬断やAPIのレート制限（429エラー）を検知した際、システムはエラーを即座に `TRANSIENT` として自律的にトリアージ分類します。
-その後、段階的な **指数バックオフ付き自動リトライ（Exponential Backoff）** を起動し、実機通信の遅延を耐え抜いて自己修復（Self-Healing）を遂行。データ永続化とセマンティックマッピングの「動的平衡」を自律的に維持する、最高強度の信頼性を備えています。
-
-### 3.4 静寂と呼吸の和モダンUI
-絵文字を一切排除し、日本語「Noto Serif JP」と英語「Playfair Display」をブレンドした美しいセリフ体、極細の淡い境界線だけで構成されたプレミアム・ミニマリズムデザイン。右上の言語トグルにより、UIテキストだけでなくエージェントの推論プロンプト言語も動的に瞬時切り替え可能です。
+**`POST /api/sendNoise` — request body:**
+```json
+{
+  "userInput": "Your raw thought text",
+  "lang": "en | ja",
+  "attachment": { "name": "sketch.png", "mimeType": "image/png", "data": "<base64>" },
+  "linkUrl": "https://example.com",
+  "simulateError": "transient"
+}
+```
 
 ---
 
-## 4. クイックスタート（Quick Start）
+## Quick Start
 
-### 4.1 環境変数の設定
-プロジェクトのルートディレクトリに `.env` ファイルを作成し、以下を記述します。
+### 1. Configure environment variables
+
+Copy `.env.example` to `.env` and fill in your credentials:
 
 ```env
 PORT=3000
@@ -86,26 +143,31 @@ GEMINI_MODEL=gemini-2.5-flash
 GEMINI_EMBEDDING_MODEL=gemini-embedding-2-preview
 ```
 
-### 4.2 起動手順
-Node.js (v18以降) がインストールされていることを確認し、以下を実行します。
+MongoDB is optional for local testing — the system uses an in-memory store as a fallback.
+
+### 2. Install and run
+
+Requires Node.js v18 or later.
 
 ```bash
-# 依存関係のインストール
 npm install
-
-# ローカル開発サーバーの起動
 npm start
 ```
-起動後、ブラウザで [http://localhost:3000/](http://localhost:3000/) にアクセスしてください。
 
-### 4.3 自動評価テスト (EDD: 評価駆動開発)
-評価駆動開発（Evaluation Driven Development）の規約に従い、実機通信（Gemini & MongoDB Atlas）を叩いてアサーションを行う自動評価テストを同梱しています。以下のコマンドで実行し、GREEN（100点満点）になることを検証できます。
+The server starts at [http://localhost:3000](http://localhost:3000).
+
+### 3. Run the evaluation suite
+
+This project uses Evaluation Driven Development (EDD). The automated eval suite tests all core behaviors against the spec:
 
 ```bash
 npm run eval
 ```
 
+A score of 100/100 indicates full spec compliance.
+
 ---
 
-## 5. オープンソースライセンス
-本プロジェクトは、Google Cloud ハッカソンのガードレールに完全適合した **Apache License, Version 2.0** のもとで公開されています。ライセンスの全文および規約は、ルート直下の `LICENSE` ファイルを参照してください。
+## License
+
+Apache License, Version 2.0. See [LICENSE](./LICENSE) for details.
