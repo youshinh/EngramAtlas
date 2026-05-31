@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Google Fonts: Noto Serif JP for elegant Japanese, and Playfair Display for headers -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Marked JS for premium Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+      :root {
+        --bg-color: #f7f7f9;
+        --card-bg: rgba(255, 255, 255, 0.7);
+        --text-main: #2d3748;
+        --text-sub: #718096;
+        --border-color: rgba(226, 232, 240, 0.8);
+        --input-bg: rgba(255, 255, 255, 0.9);
+        --circle-bg: rgba(0, 0, 0, 0.03);
+        --btn-bg: #2d3748;
+        --btn-text: #ffffff;
+        --btn-hover: #1a202c;
+        --result-bg: rgba(255, 255, 255, 0.6);
+      }
+
+      /* Dark mode overrides */
+      .dark-theme {
+        --bg-color: #0c0e14;
+        --card-bg: rgba(20, 24, 37, 0.7);
+        --text-main: #e2e8f0;
+        --text-sub: #a0aec0;
+        --border-color: rgba(45, 55, 72, 0.5);
+        --input-bg: rgba(13, 17, 28, 0.8);
+        --circle-bg: rgba(255, 255, 255, 0.02);
+        --btn-bg: #e2e8f0;
+        --btn-text: #0c0e14;
+        --btn-hover: #ffffff;
+        --result-bg: rgba(18, 23, 37, 0.6);
+      }
+
+      body {
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        font-family: 'Noto Serif JP', serif;
+        transition: background-color 0.5s ease, color 0.5s ease;
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      .serif-header {
+        font-family: 'Playfair Display', 'Noto Serif JP', serif;
+        letter-spacing: 0.05em;
+      }
+
+      /* Background delicate blur circle representing dynamic equilibrium */
+      .equilibrium-sphere {
+        width: 320px;
+        height: 320px;
+        border-radius: 50%;
+        background-color: var(--circle-bg);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        border: 1px solid var(--border-color);
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 1;
+        transition: all 0.5s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+      }
+
+      .equilibrium-sphere::before {
+        content: '';
+        width: 110%;
+        height: 110%;
+        border-radius: 50%;
+        border: 1px dashed var(--border-color);
+        position: absolute;
+        animation: rotate-slow 60s linear infinite;
+        opacity: 0.4;
+      }
+
+      @keyframes rotate-slow {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+
+      /* Calm fade-in animation for results */
+      .fade-in {
+        animation: fadeIn 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      .glass-container {
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.02);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        transition: all 0.5s ease;
+      }
+
+      /* Premium quiet input field style */
+      .minimal-input {
+        background-color: var(--input-bg);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        transition: all 0.3s ease;
+      }
+      .minimal-input:focus {
+        outline: none;
+        border-color: var(--text-main);
+        box-shadow: 0 0 0 1px var(--text-main);
+      }
+
+      /* Scrollbar */
+      ::-webkit-scrollbar {
+        width: 4px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border-color);
+        border-radius: 2px;
+      }
+
+      /* Premium quiet Markdown Styling */
+      .markdown-content {
+        line-height: 1.7;
+      }
+      .markdown-content h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-top: 1.25rem;
+        margin-bottom: 0.5rem;
+        color: var(--text-main);
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 0.25rem;
+        letter-spacing: 0.05em;
+      }
+      .markdown-content p {
+        margin-bottom: 0.75rem;
+      }
+      .markdown-content ul {
+        list-style-type: none;
+        padding-left: 0.5rem;
+        margin-bottom: 1rem;
+      }
+      .markdown-content li {
+        position: relative;
+        padding-left: 1.25rem;
+        margin-bottom: 0.35rem;
+      }
+      .markdown-content li::before {
+        content: "•";
+        position: absolute;
+        left: 0.25rem;
+        color: var(--text-sub);
+      }
+      .markdown-content blockquote {
+        border-left: 2px solid var(--text-sub);
+        padding-left: 1rem;
+        margin: 1rem 0;
+        color: var(--text-sub);
+        font-style: italic;
+      }
+      .markdown-content code {
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 0.85em;
+        background-color: rgba(0, 0, 0, 0.04);
+        padding: 0.15rem 0.35rem;
+        border-radius: 4px;
+        color: var(--text-main);
+      }
+      .dark-theme .markdown-content code {
+        background-color: rgba(255, 255, 255, 0.06);
+      }
+      .markdown-content hr {
+        border: 0;
+        height: 1px;
+        background: var(--border-color);
+        margin: 1.25rem 0;
+      }
+    </style>
+  </head>
+  <body class="flex items-center justify-center p-6 relative">
+    
+    <!-- Language & Theme Controllers in top-right -->
+    <div class="absolute top-6 right-6 flex items-center space-x-4" style="z-index: 10;">
+      <!-- Language Selector Button -->
+      <button onclick="toggleLanguage()" class="p-2 rounded-full border border-transparent hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-300 text-xs tracking-widest focus:outline-none" style="color: var(--text-sub);">
+        <span id="langToggleText">日本語</span>
+      </button>
+      
+      <!-- Split line -->
+      <span class="text-xs select-none" style="color: var(--border-color);">|</span>
+      
+      <!-- Theme Switch Button -->
+      <button onclick="toggleTheme()" class="p-2 rounded-full border border-transparent hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-300 text-xs tracking-widest focus:outline-none" style="color: var(--text-sub);">
+        <span id="themeToggleText">DARK MODE</span>
+      </button>
+    </div>
+
+    <!-- Equilibrium Sphere (Visual Metaphor) -->
+    <div class="equilibrium-sphere">
+      <div class="text-center opacity-10 select-none">
+        <span class="text-xs tracking-widest block font-light">E N G R A M</span>
+        <span class="text-xs tracking-widest block font-light">A T L A S</span>
+      </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="w-full max-w-lg glass-container p-8 rounded-3xl relative z-10">
+      
+      <!-- Header -->
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-light serif-header mb-2 tracking-widest">EngramAtlas</h1>
+        <p id="uiSubtitle" class="text-xs tracking-wider" style="color: var(--text-sub);">
+          Receiving undifferentiated thought noise, weaving relationships.
+        </p>
+      </div>
+
+      <!-- Input Form -->
+      <div class="space-y-6">
+        <div>
+          <textarea id="noiseInput" class="w-full h-40 p-4 rounded-xl minimal-input text-sm leading-relaxed placeholder-gray-400" placeholder="e.g., Strength calculation of stair treads. Reverse limitation approach integrating wood grain 'warp' into structural strength. Hypothesis of controlling friction and airflow with irregular grooves (DMR)..."></textarea>
+        </div>
+
+        <button onclick="submitNoise()" id="btnSubmit" class="w-full py-3.5 rounded-xl font-light text-sm tracking-widest transition-all duration-300 transform active:scale-99 focus:outline-none flex justify-center items-center" style="background-color: var(--btn-bg); color: var(--btn-text);">
+          <span id="btnSubmitText">Release (Begin Self-Organization)</span>
+        </button>
+
+        <!-- Loader -->
+        <div id="loader" class="hidden text-center py-4">
+          <p id="uiLoaderText" class="text-xs tracking-widest animate-pulse" style="color: var(--text-sub);">
+            Quietly weaving relationships...
+          </p>
+        </div>
+
+        <!-- Result Container -->
+        <div id="resultContainer" class="hidden p-6 rounded-xl border fade-in" style="background-color: var(--result-bg); border-color: var(--border-color);">
+          <h3 id="uiResultTitle" class="text-xs font-semibold tracking-wider mb-3 pb-2 border-b" style="color: var(--text-main); border-color: var(--border-color);">
+            🧠 Cognitive Path & Emergent Results:
+          </h3>
+          <div id="resultContent" class="markdown-content text-xs leading-relaxed text-left tracking-wide" style="color: var(--text-main);"></div>
+        </div>
+      </div>
+
+      <!-- Footer Info -->
+      <div class="text-center mt-8 pt-4 border-t" style="border-color: var(--border-color);">
+        <p id="uiFooterText" class="text-xs font-light tracking-widest" style="color: var(--text-sub);">
+          ※ Memory as a convention of relationship. Dynamic equilibrium in perpetual flux.
+        </p>
+      </div>
+
+    </div>
+
+    <script>
+      // Configure marked.js options for line breaks
+      marked.setOptions({
+        breaks: true,
+        gfm: true
+      });
+
+      // i18n Translation Dictionary
+      const translations = {
+        en: {
+          subtitle: "Receiving undifferentiated thought noise, weaving relationships.",
+          placeholder: "e.g., Strength calculation of stair treads. Reverse limitation approach integrating wood grain 'warp' into structural strength. Hypothesis of controlling friction and airflow with irregular grooves (DMR)...",
+          btnSubmit: "Release (Begin Self-Organization)",
+          loader: "Quietly weaving relationships...",
+          resultTitle: "🧠 Cognitive Path & Emergent Results:",
+          footer: "※ Memory as a convention of relationship. Dynamic equilibrium in perpetual flux.",
+          langToggle: "日本語",
+          themeDark: "DARK MODE",
+          themeLight: "LIGHT MODE"
+        },
+        ja: {
+          subtitle: "未分化の思考ノイズを受け止め、関係性を紡ぐ",
+          placeholder: "例：階段の段板強度計算。木目の『反り』を構造強度に組み込む逆限定アプローチ。不規則な溝（DMR）による摩擦と気流制御の仮説...",
+          btnSubmit: "放流（自己組織化の開始）",
+          loader: "関係性を静かに紡いでいます...",
+          resultTitle: "🧠 思考の軌道と創発結果:",
+          footer: "※関係性の規約としての記憶。絶え間なく移り変わる動的平衡。",
+          langToggle: "ENGLISH",
+          themeDark: "ダークモード",
+          themeLight: "ライトモード"
+        }
+      };
+
+      let currentLang = 'en'; // English is default
+
+      function toggleLanguage() {
+        currentLang = currentLang === 'en' ? 'ja' : 'en';
+        applyTranslations();
+      }
+
+      function applyTranslations() {
+        const t = translations[currentLang];
+        
+        document.getElementById('uiSubtitle').innerText = t.subtitle;
+        document.getElementById('noiseInput').placeholder = t.placeholder;
+        document.getElementById('btnSubmitText').innerText = t.btnSubmit;
+        document.getElementById('uiLoaderText').innerText = t.loader;
+        document.getElementById('uiResultTitle').innerHTML = t.resultTitle;
+        document.getElementById('uiFooterText').innerText = t.footer;
+        
+        document.getElementById('langToggleText').innerText = t.langToggle;
+        
+        // Update theme toggle text according to language
+        const isDark = document.body.classList.contains('dark-theme');
+        document.getElementById('themeToggleText').innerText = isDark ? t.themeLight : t.themeDark;
+      }
+
+      // Automatically check system preference for theme
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark-theme');
+      }
+      
+      // Initial translation apply
+      applyTranslations();
+
+      function toggleTheme() {
+        const isDark = document.body.classList.toggle('dark-theme');
+        const t = translations[currentLang];
+        document.getElementById('themeToggleText').innerText = isDark ? t.themeLight : t.themeDark;
+      }
+
+      const isLocal = !window.google || !window.google.script;
+
+      function submitNoise() {
+        const inputField = document.getElementById('noiseInput');
+        const input = inputField.value;
+        if (!input.trim()) return;
+
+        const btnSubmit = document.getElementById('btnSubmit');
+        const btnSubmitText = document.getElementById('btnSubmitText');
+        
+        // 1. Loading State for Button and Loader
+        btnSubmit.disabled = true;
+        const originalBtnText = btnSubmitText.innerText;
+        btnSubmitText.innerText = currentLang === 'en' ? "🧬 Weaving..." : "🧬 放流中...";
+        
+        document.getElementById('loader').classList.remove('hidden');
+        document.getElementById('resultContainer').classList.add('hidden');
+
+        if (isLocal) {
+          fetch('/api/sendNoise', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userInput: input, lang: currentLang })
+          })
+          .then(res => res.json())
+          .then(data => {
+            handleResponse(data.response || data.error || "Unexpected response.", inputField, btnSubmit, btnSubmitText, originalBtnText);
+          })
+          .catch(err => {
+            handleFailure(err, btnSubmit, btnSubmitText, originalBtnText);
+          });
+        } else {
+          google.script.run
+            .withSuccessHandler(function(response) {
+              handleResponse(response, inputField, btnSubmit, btnSubmitText, originalBtnText);
+            })
+            .withFailureHandler(function(err) {
+              handleFailure(err, btnSubmit, btnSubmitText, originalBtnText);
+            })
+            .sendNoiseToAgent(input, currentLang);
+        }
+      }
+
+      function handleResponse(response, inputField, btnSubmit, btnSubmitText, originalBtnText) {
+        // 2. Success Animation & State Restoration
+        document.getElementById('loader').classList.add('hidden');
+        
+        // Render Markdown elegantly using marked.js
+        try {
+          document.getElementById('resultContent').innerHTML = marked.parse(response);
+        } catch (e) {
+          console.error("Markdown rendering error:", e);
+          document.getElementById('resultContent').innerHTML = response; // Fallback
+        }
+        
+        document.getElementById('resultContainer').classList.remove('hidden');
+        
+        // Clear text area elegantly
+        inputField.value = "";
+        
+        // Temporary success state for button
+        btnSubmitText.innerText = currentLang === 'en' ? "✅ Released Successfully" : "✅ 記憶の海へ放流完了";
+        btnSubmit.style.transition = "all 0.3s ease";
+        btnSubmit.style.background = "linear-gradient(135deg, #10b981 0%, #059669 100%)"; // Elegant Emerald green
+        btnSubmit.style.color = "#ffffff";
+        btnSubmit.style.transform = "scale(1.01)";
+        
+        setTimeout(() => {
+          btnSubmit.disabled = false;
+          btnSubmitText.innerText = originalBtnText;
+          // Restore original button styles dynamically
+          btnSubmit.style.background = "";
+          btnSubmit.style.color = "";
+          btnSubmit.style.transform = "";
+        }, 1800);
+      }
+
+      function handleFailure(err, btnSubmit, btnSubmitText, originalBtnText) {
+        document.getElementById('loader').classList.add('hidden');
+        const errorMsg = currentLang === 'en' ? "Connection failed. Detail: " : "通信に失敗しました。詳細: ";
+        document.getElementById('resultContent').innerText = errorMsg + (err.message || err.toString());
+        document.getElementById('resultContainer').classList.remove('hidden');
+        
+        btnSubmit.disabled = false;
+        btnSubmitText.innerText = originalBtnText;
+        btnSubmit.style.background = "";
+        btnSubmit.style.color = "";
+      }
+    </script>
+  </body>
+</html>
