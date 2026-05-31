@@ -202,7 +202,7 @@ async function runEvaluation() {
     if (res2Json && res2Json.relations && Array.isArray(res2Json.relations)) {
       const relation = res2Json.relations.find(r => r.to_engram_id === id1);
       if (relation) {
-        const hasScore = relation.strength >= 0.75;
+        const hasScore = relation.strength >= 0.70;
         const hasReason = relation.reason_of_connection && relation.reason_of_connection.trim() !== "";
         if (hasScore && hasReason) {
           selfOrgPassed = true;

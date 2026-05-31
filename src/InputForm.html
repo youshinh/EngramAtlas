@@ -249,6 +249,10 @@
 
         <!-- Result Container -->
         <div id="resultContainer" class="hidden p-6 rounded-xl border fade-in" style="background-color: var(--result-bg); border-color: var(--border-color);">
+          
+          <!-- Silent Elegant Metadata Signature -->
+          <div id="resultMetadata" class="text-right text-xs italic tracking-widest mb-3 opacity-60 select-none" style="color: var(--text-sub); font-family: 'Playfair Display', 'Noto Serif JP', serif;"></div>
+
           <h3 id="uiResultTitle" class="text-xs font-semibold tracking-wider mb-3 pb-2 border-b" style="color: var(--text-main); border-color: var(--border-color);">
             🧠 Cognitive Path & Emergent Results:
           </h3>
@@ -362,7 +366,7 @@
           })
           .then(res => res.json())
           .then(data => {
-            handleResponse(data.response || data.error || "Unexpected response.", inputField, btnSubmit, btnSubmitText, originalBtnText);
+            handleResponse(data, inputField, btnSubmit, btnSubmitText, originalBtnText);
           })
           .catch(err => {
             handleFailure(err, btnSubmit, btnSubmitText, originalBtnText);
@@ -370,7 +374,8 @@
         } else {
           google.script.run
             .withSuccessHandler(function(response) {
-              handleResponse(response, inputField, btnSubmit, btnSubmitText, originalBtnText);
+              // Reconstruct dynamic data payload for GAS compatibility
+              handleResponse({ response: response }, inputField, btnSubmit, btnSubmitText, originalBtnText);
             })
             .withFailureHandler(function(err) {
               handleFailure(err, btnSubmit, btnSubmitText, originalBtnText);
@@ -379,16 +384,27 @@
         }
       }
 
-      function handleResponse(response, inputField, btnSubmit, btnSubmitText, originalBtnText) {
-        // 2. Success Animation & State Restoration
+      function handleResponse(data, inputField, btnSubmit, btnSubmitText, originalBtnText) {
         document.getElementById('loader').classList.add('hidden');
+        
+        const responseText = data.response || "";
         
         // Render Markdown elegantly using marked.js
         try {
-          document.getElementById('resultContent').innerHTML = marked.parse(response);
+          document.getElementById('resultContent').innerHTML = marked.parse(responseText);
         } catch (e) {
           console.error("Markdown rendering error:", e);
-          document.getElementById('resultContent').innerHTML = response; // Fallback
+          document.getElementById('resultContent').innerHTML = responseText;
+        }
+        
+        // Render dynamic metadata signature quietly if available
+        const metaContainer = document.getElementById('resultMetadata');
+        if (data.metadata) {
+          const m = data.metadata;
+          metaContainer.innerHTML = `${m.model} &nbsp;·&nbsp; entropy: ${m.entropy.toFixed(2)} &nbsp;·&nbsp; scope: ${m.scope.toLowerCase()}`;
+          metaContainer.classList.remove('hidden');
+        } else {
+          metaContainer.classList.add('hidden');
         }
         
         document.getElementById('resultContainer').classList.remove('hidden');

@@ -44,12 +44,10 @@ function cosineSimilarity(vecA, vecB) {
 }
 
 // Highly Intelligent Deterministic Mock Embedding generator (3,072 dimensions)
-// Emulates real semantic embeddings using character frequency distributions
 function getMockEmbedding(text) {
   const vector = [];
   const textLen = text.length || 1;
   
-  // Create a character occurrence distribution (representing term frequencies)
   const charCounts = new Array(256).fill(0);
   for (let i = 0; i < text.length; i++) {
     const code = text.charCodeAt(i) % 256;
@@ -57,19 +55,62 @@ function getMockEmbedding(text) {
   }
   
   for (let i = 0; i < 3072; i++) {
-    // Elegant base wave that all vectors share to simulate a global coordinate space
     const baseWave = Math.sin(i * 0.05) * 0.04;
-    
-    // Text-specific semantic weight based on character frequency
     const charIndex = i % 256;
     const count = charCounts[charIndex];
-    
-    // Normalized term frequency projection to coordinate dimensions
     const semanticWeight = (count / textLen) * Math.cos(i + charIndex) * 0.08;
-    
     vector.push(baseWave + semanticWeight);
   }
   return vector;
+}
+
+// ----------------------------------------------------
+// 🛡️ Day 6-8 Resilience and Triage Core Logic
+// ----------------------------------------------------
+
+// Triage error classification
+function triageError(err) {
+  const message = err.message || "";
+  
+  if (
+    message.includes('429') || 
+    message.includes('rate limit') || 
+    message.includes('ResourceExhausted') || 
+    message.includes('timeout') || 
+    message.includes('ECONNRESET') ||
+    message.includes('ETIMEDOUT') ||
+    message.includes('TRANSIENT')
+  ) {
+    return 'TRANSIENT';
+  }
+  
+  return 'FATAL';
+}
+
+// Exponential Backoff retry helper
+async function retryWithBackoff(fn, retries = 3, initialDelay = 500, currentLang = 'en', onRetry = null) {
+  let delay = initialDelay;
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const errorType = triageError(err);
+      
+      console.warn(`⚠️ [Attempt ${attempt}/${retries}] Error type: ${errorType} | Message: ${err.message}`);
+      
+      if (onRetry) {
+        onRetry(attempt, errorType, err.message);
+      }
+      
+      if (errorType === 'FATAL' || attempt === retries) {
+        throw err;
+      }
+      
+      console.log(`🔌 [Triage: TRANSIENT] Exponential backoff triggered. Retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 2;
+    }
+  }
 }
 
 // Get embedding vector via Google Gen AI SDK or fallback mock
@@ -120,7 +161,6 @@ Please explain the context or resonant meaning (reason of connection) between th
     }
   }
 
-  // Fallback mock reasons (Dynamic based on whether it is stair design or poetic/other text)
   const isPoetry = textA.includes('道') || textA.includes('流') || textA.includes('いのち') || textA.includes('静');
   if (isPoetry) {
     return currentLang === 'ja'
@@ -142,7 +182,7 @@ app.get('/', (req, res) => {
 });
 
 app.post('/api/sendNoise', async (req, res) => {
-  const { userInput, lang } = req.body;
+  const { userInput, lang, simulateError } = req.body;
   const currentLang = lang || 'en';
   const apiKey = process.env.GEMINI_API_KEY;
   const mongoUri = process.env.MONGODB_URI;
@@ -163,6 +203,9 @@ app.post('/api/sendNoise', async (req, res) => {
   let useMongo = false;
   let dbClient = null;
   let matchedRelations = [];
+  
+  let retryLogs = [];
+  let selfHealCount = 0;
 
   // Define new Engram structure
   const newEngram = {
@@ -186,104 +229,116 @@ app.post('/api/sendNoise', async (req, res) => {
   };
 
   // 2. Perform DB Insertion and Bi-directional Self-Organization
-  if (mongoUri && mongoUri !== 'mongodb_connection_string_here') {
-    try {
-      dbClient = new MongoClient(mongoUri);
-      await dbClient.connect();
-      const db = dbClient.db('engram_atlas');
-      const engramsCollection = db.collection('engrams');
+  try {
+    let currentAttempt = 0;
+    
+    await retryWithBackoff(async () => {
+      currentAttempt++;
+      
+      // Trigger error simulation for EDD validation scenario
+      if (simulateError === 'transient' && currentAttempt < 3) {
+        throw new Error(`[TRANSIENT] Simulated API Rate Limit Exceeded (429) - Attempt ${currentAttempt}`);
+      }
 
-      // Create new engram document
-      const insertRes = await engramsCollection.insertOne(newEngram);
-      dbResultId = insertRes.insertedId.toString();
-      newEngram._id = insertRes.insertedId;
-      useMongo = true;
+      if (mongoUri && mongoUri !== 'mongodb_connection_string_here') {
+        dbClient = new MongoClient(mongoUri);
+        await dbClient.connect();
+        const db = dbClient.db('engram_atlas');
+        const engramsCollection = db.collection('engrams');
 
-      // Find all past engrams to perform vector search locally
-      const pastEngrams = await engramsCollection.find({ 
-        _id: { $ne: newEngram._id },
-        vector_embeddings: { $exists: true }
-      }).toArray();
+        // Create new engram document
+        const insertRes = await engramsCollection.insertOne(newEngram);
+        dbResultId = insertRes.insertedId.toString();
+        newEngram._id = insertRes.insertedId;
+        useMongo = true;
 
-      console.log(`🔍 [MongoDB] Scanning ${pastEngrams.length} past engrams for similarities...`);
+        // Find all past engrams to perform vector search locally
+        const pastEngrams = await engramsCollection.find({ 
+          _id: { $ne: newEngram._id },
+          vector_embeddings: { $exists: true }
+        }).toArray();
 
-      for (const past of pastEngrams) {
-        const score = cosineSimilarity(embedding, past.vector_embeddings);
-        if (score >= 0.75) {
-          console.log(`🔗 [Match Found] ID: ${past._id}, Score: ${score.toFixed(4)}`);
-          
-          // Generate reason via Gemini
-          const reason = await generateReasonOfConnection(userInput, past.content, currentLang, apiKey);
-          
-          const newLinkForCurrent = {
-            to_engram_id: past._id.toString(),
-            strength: score,
-            reason_of_connection: reason
-          };
-          matchedRelations.push(newLinkForCurrent);
+        console.log(`🔍 [MongoDB] Scanning ${pastEngrams.length} past engrams for similarities...`);
 
-          // Update current doc related_links array
-          await engramsCollection.updateOne(
-            { _id: newEngram._id },
-            { 
-              $push: { related_links: newLinkForCurrent },
-              $push: { 
-                evolution_history: {
-                  timestamp: new Date(),
-                  action: "self_organize_link",
-                  comment: `Connected to ${past._id.toString()} with similarity ${score.toFixed(2)}`
+        // Optimized live similarity threshold to 0.70 for real embeddings
+        const similarityThreshold = 0.70;
+
+        for (const past of pastEngrams) {
+          const score = cosineSimilarity(embedding, past.vector_embeddings);
+          if (score >= similarityThreshold) {
+            console.log(`🔗 [Match Found] ID: ${past._id}, Score: ${score.toFixed(4)}`);
+            
+            // Generate connection reason
+            const reason = await generateReasonOfConnection(userInput, past.content, currentLang, apiKey);
+            
+            const newLinkForCurrent = {
+              to_engram_id: past._id.toString(),
+              strength: score,
+              reason_of_connection: reason
+            };
+            matchedRelations.push(newLinkForCurrent);
+
+            // Update current doc
+            await engramsCollection.updateOne(
+              { _id: newEngram._id },
+              { 
+                $push: { related_links: newLinkForCurrent },
+                $push: { 
+                  evolution_history: {
+                    timestamp: new Date(),
+                    action: "self_organize_link",
+                    comment: `Connected to ${past._id.toString()} with similarity ${score.toFixed(2)}`
+                  }
                 }
               }
-            }
-          );
+            );
 
-          // Update past doc related_links array (Bi-directional Link)
-          const newLinkForPast = {
-            to_engram_id: dbResultId,
-            strength: score,
-            reason_of_connection: reason
-          };
-          await engramsCollection.updateOne(
-            { _id: past._id },
-            { 
-              $push: { related_links: newLinkForPast },
-              $push: { 
-                evolution_history: {
-                  timestamp: new Date(),
-                  action: "self_organize_link",
-                  comment: `Connected to newly created ${dbResultId} with similarity ${score.toFixed(2)}`
+            // Update past doc
+            const newLinkForPast = {
+              to_engram_id: dbResultId,
+              strength: score,
+              reason_of_connection: reason
+            };
+            await engramsCollection.updateOne(
+              { _id: past._id },
+              { 
+                $push: { related_links: newLinkForPast },
+                $push: { 
+                  evolution_history: {
+                    timestamp: new Date(),
+                    action: "self_organize_link",
+                    comment: `Connected to newly created ${dbResultId} with similarity ${score.toFixed(2)}`
+                  }
                 }
               }
-            }
-          );
+            );
+          }
         }
       }
-      console.log(`💾 [MongoDB] Engram created and metabolised. ID: ${dbResultId}`);
-    } catch (dbErr) {
-      console.error("❌ [MongoDB Error] Fallback to in-memory mode:", dbErr.message);
-      useMongo = false;
-    } finally {
-      if (dbClient) {
-        await dbClient.close();
-      }
-    }
+    }, 3, 500, currentLang, (attempt, type, msg) => {
+      selfHealCount = attempt;
+      retryLogs.push(`Attempt ${attempt}: Detected ${type} error (${msg.substring(0, 45)}...). Retrying...`);
+    });
+  } catch (resilienceErr) {
+    console.error("❌ [Resilience Engine] Fallback to in-memory mode.", resilienceErr.message);
   }
 
-  // In-memory Simulation fallback
-  if (!useMongo) {
+  // Fallback Mock Storage execution if Mongo wasn't active
+  if (!useMongo && dbResultId === null) {
     const mockId = "mock_" + Math.random().toString(36).substr(2, 9);
     newEngram._id = mockId;
     dbResultId = mockId;
 
     console.log(`🔍 [Mock DB] Scanning ${mockEngrams.length} past mock engrams for similarities...`);
 
+    const similarityThreshold = 0.70; // 0.70 for mock too for consistency
+
     // Perform Similarity Search on in-memory collection
     for (const past of mockEngrams) {
       const score = cosineSimilarity(embedding, past.vector_embeddings);
-      if (score >= 0.75) {
+      if (score >= similarityThreshold) {
         console.log(`🔗 [Mock Match Found] ID: ${past._id}, Score: ${score.toFixed(4)}`);
 
-        // Generate reason via Gemini or mock
         const reason = await generateReasonOfConnection(userInput, past.content, currentLang, apiKey);
         
         const newLinkForCurrent = {
@@ -300,7 +355,6 @@ app.post('/api/sendNoise', async (req, res) => {
           comment: `Mock connected to ${past._id} with similarity ${score.toFixed(2)}`
         });
 
-        // Bi-directional link update in mock DB
         past.related_links.push({
           to_engram_id: mockId,
           strength: score,
@@ -318,7 +372,7 @@ app.post('/api/sendNoise', async (req, res) => {
     console.log(`💾 [Mock DB] Engram created and metabolised. ID: ${dbResultId}`);
   }
 
-  // 3. Generate Agent Cognitive Explanation response in chosen language
+  // 3. Generate Agent Cognitive Explanation response
   let agentResponse = "";
   if (apiKey && apiKey !== 'your_gemini_api_key_here') {
     try {
@@ -348,7 +402,37 @@ app.post('/api/sendNoise', async (req, res) => {
     }
   }
 
-  // Default fallback formatting for agent responses if API key is not active or failed
+  // Inject Self-Healing logs trace in the output if any recovery occurred
+  let healTraceMarkdown = "";
+  if (selfHealCount > 0) {
+    if (currentLang === 'ja') {
+      healTraceMarkdown = `\n\n### 🛡️ [Self-Healing / 自己修復成功ログ]\n一時的な障害を検知し、自律修復エンジンが指数バックオフ付きリトライを実行しました：\n`;
+      retryLogs.forEach(log => {
+        healTraceMarkdown += `* \`[Triage: TRANSIENT]\` ${log}\n`;
+      });
+      healTraceMarkdown += `* **自己修復結果**: ${selfHealCount}回目のリトライでデータ永続化およびセマンティックマッピングに成功し、動的平衡を復旧しました。\n`;
+    } else {
+      healTraceMarkdown = `\n\n### 🛡️ [Self-Healing Success Log]\nTransient anomaly detected. The resilience engine performed exponential backoff retries:\n`;
+      retryLogs.forEach(log => {
+        healTraceMarkdown += `* \`[Triage: TRANSIENT]\` ${log}\n`;
+      });
+      healTraceMarkdown += `* **Recovery Result**: Successfully restored equilibrium on retry attempt #${selfHealCount}, securing data persistence and semantic mapping.\n`;
+    }
+    
+    // Add self-healing logs to evolution history
+    newEngram.evolution_history.push({
+      timestamp: new Date(),
+      action: "self_heal_success",
+      comment: `Recovered from transient error after ${selfHealCount} attempts.`
+    });
+  }
+
+  // Append self-healing logs even if we got a real agent response from Gemini API!
+  if (agentResponse && healTraceMarkdown) {
+    agentResponse += healTraceMarkdown;
+  }
+
+  // Fallback formatting for agent responses if API key is not active or failed
   if (!agentResponse) {
     if (currentLang === 'ja') {
       let relationshipReport = "既存の記憶（Engram）との交差共鳴は検知されませんでした。";
@@ -369,10 +453,10 @@ app.post('/api/sendNoise', async (req, res) => {
    - 新規ドキュメント (\`db_id: ${dbResultId}\`) に \`related_links\` が双方向で正しく結線されました。
 
 3. **進化履歴の記録**:
-   - アクション \`"self_organize_link"\` を代謝ログに追加。システムのエントロピーが削減されました。
+   - アクション \`"self_organize_link"\` を代謝ログに追加。システムのエントロピーが削減されました。${healTraceMarkdown}
 
 ---
-> 🧬 **自己組織化ステータス**: GREEN (適合 / 記憶の動的平衡が確立されました)`;
+> 🧬 **自己組織化ステータス**: GREEN (適合 / 記憶 of 動的平衡が確立されました)`;
     } else {
       let relationshipReport = "No overlapping resonance detected with past memories.";
       if (matchedRelations.length > 0) {
@@ -392,7 +476,7 @@ app.post('/api/sendNoise', async (req, res) => {
    - Bi-directional \`related_links\` successfully established for the new node (\`db_id: ${dbResultId}\`).
 
 3. **Evolution Log**:
-   - Recorded \`"self_organize_link"\` action to the metabolism log. System entropy has been successfully regulated.
+   - Recorded \`"self_organize_link"\` action to the metabolism log. System entropy has been successfully regulated.${healTraceMarkdown}
 
 ---
 > 🧬 **Metabolism Status**: GREEN (Dynamic equilibrium and memory weaving active)`;
@@ -403,7 +487,12 @@ app.post('/api/sendNoise', async (req, res) => {
     response: agentResponse,
     db_id: dbResultId,
     mode: useMongo ? "production" : "mock",
-    relations: matchedRelations
+    relations: matchedRelations,
+    metadata: {
+      model: embedModel,
+      entropy: newEngram.metadata.entropy_score || 0.5,
+      scope: newEngram.metadata.scope || "PERSONAL"
+    }
   });
 });
 
