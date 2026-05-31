@@ -239,13 +239,24 @@
         <!-- Multimodal Options (Quiet & Elegant) -->
         <div class="space-y-4">
           <!-- Web Link Input Box -->
-          <div class="relative">
-            <input type="url" id="linkInput" class="w-full px-4 py-2.5 rounded-xl minimal-input text-xs tracking-widest placeholder-gray-400" placeholder="Web Link (URL)">
+          <div class="relative flex items-center">
+            <span class="absolute left-4 opacity-50" style="color: var(--text-sub);">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"></path>
+              </svg>
+            </span>
+            <input type="url" id="linkInput" class="w-full pl-11 pr-4 py-2.5 rounded-xl minimal-input text-xs tracking-widest placeholder-gray-400" placeholder="Web Link (URL)">
           </div>
 
           <!-- File Upload Zone -->
           <div class="relative">
-            <label for="fileAttachment" class="w-full py-4 rounded-xl border border-dashed flex flex-col items-center justify-center cursor-pointer transition-all duration-300 hover:bg-gray-100 dark:hover:bg-gray-800" style="border-color: var(--border-color); background-color: var(--input-bg);">
+            <label for="fileAttachment" class="w-full py-5 rounded-xl border border-dashed flex flex-col items-center justify-center cursor-pointer transition-all duration-300 hover:bg-gray-100 dark:hover:bg-gray-800" style="border-color: var(--border-color); background-color: var(--input-bg);">
+              <!-- Paperclip minimal line SVG -->
+              <span id="uiUploadIcon" class="mb-2 opacity-50" style="color: var(--text-sub);">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                </svg>
+              </span>
               <span id="uiUploadText" class="text-xs tracking-widest text-gray-400 select-none">Attach Photo / Sketch / PDF (Release Media)</span>
               <span id="fileNameDisplay" class="text-xs tracking-widest mt-1 hidden" style="color: var(--text-main);"></span>
             </label>
@@ -379,6 +390,7 @@
         const file = input.files[0];
         const nameDisplay = document.getElementById('fileNameDisplay');
         const uploadText = document.getElementById('uiUploadText');
+        const uploadIcon = document.getElementById('uiUploadIcon');
 
         if (!file) {
           selectedFileBase64 = null;
@@ -386,6 +398,7 @@
           selectedFileName = null;
           nameDisplay.classList.add('hidden');
           uploadText.classList.remove('hidden');
+          uploadIcon.classList.remove('hidden');
           return;
         }
 
@@ -400,6 +413,7 @@
           nameDisplay.innerText = file.name;
           nameDisplay.classList.remove('hidden');
           uploadText.classList.add('hidden');
+          uploadIcon.classList.add('hidden');
         };
         reader.readAsDataURL(file);
       }
@@ -495,6 +509,7 @@
         selectedFileName = null;
         document.getElementById('fileNameDisplay').classList.add('hidden');
         document.getElementById('uiUploadText').classList.remove('hidden');
+        document.getElementById('uiUploadIcon').classList.remove('hidden');
         
         // Temporary success state for button
         btnSubmitText.innerText = currentLang === 'en' ? "Released Successfully" : "記憶の海へ放流完了";
