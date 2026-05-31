@@ -254,7 +254,7 @@
           <div id="resultMetadata" class="text-right text-xs italic tracking-widest mb-3 opacity-60 select-none" style="color: var(--text-sub); font-family: 'Playfair Display', 'Noto Serif JP', serif;"></div>
 
           <h3 id="uiResultTitle" class="text-xs font-semibold tracking-wider mb-3 pb-2 border-b" style="color: var(--text-main); border-color: var(--border-color);">
-            🧠 Cognitive Path & Emergent Results:
+            Cognitive Path & Emergent Results
           </h3>
           <div id="resultContent" class="markdown-content text-xs leading-relaxed text-left tracking-wide" style="color: var(--text-main);"></div>
         </div>
@@ -283,7 +283,7 @@
           placeholder: "e.g., Strength calculation of stair treads. Reverse limitation approach integrating wood grain 'warp' into structural strength. Hypothesis of controlling friction and airflow with irregular grooves (DMR)...",
           btnSubmit: "Release (Begin Self-Organization)",
           loader: "Quietly weaving relationships...",
-          resultTitle: "🧠 Cognitive Path & Emergent Results:",
+          resultTitle: "Cognitive Path & Emergent Results",
           footer: "※ Memory as a convention of relationship. Dynamic equilibrium in perpetual flux.",
           langToggle: "日本語",
           themeDark: "DARK MODE",
@@ -294,7 +294,7 @@
           placeholder: "例：階段の段板強度計算。木目の『反り』を構造強度に組み込む逆限定アプローチ。不規則な溝（DMR）による摩擦と気流制御の仮説...",
           btnSubmit: "放流（自己組織化の開始）",
           loader: "関係性を静かに紡いでいます...",
-          resultTitle: "🧠 思考の軌道と創発結果:",
+          resultTitle: "思考の軌道と創発結果",
           footer: "※関係性の規約としての記憶。絶え間なく移り変わる動的平衡。",
           langToggle: "ENGLISH",
           themeDark: "ダークモード",
@@ -353,7 +353,7 @@
         // 1. Loading State for Button and Loader
         btnSubmit.disabled = true;
         const originalBtnText = btnSubmitText.innerText;
-        btnSubmitText.innerText = currentLang === 'en' ? "🧬 Weaving..." : "🧬 放流中...";
+        btnSubmitText.innerText = currentLang === 'en' ? "Weaving..." : "放流中...";
         
         document.getElementById('loader').classList.remove('hidden');
         document.getElementById('resultContainer').classList.add('hidden');
@@ -413,7 +413,7 @@
         inputField.value = "";
         
         // Temporary success state for button
-        btnSubmitText.innerText = currentLang === 'en' ? "✅ Released Successfully" : "✅ 記憶の海へ放流完了";
+        btnSubmitText.innerText = currentLang === 'en' ? "Released Successfully" : "記憶の海へ放流完了";
         btnSubmit.style.transition = "all 0.3s ease";
         btnSubmit.style.background = "linear-gradient(135deg, #10b981 0%, #059669 100%)"; // Elegant Emerald green
         btnSubmit.style.color = "#ffffff";

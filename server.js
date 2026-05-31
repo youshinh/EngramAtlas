@@ -406,13 +406,13 @@ app.post('/api/sendNoise', async (req, res) => {
   let healTraceMarkdown = "";
   if (selfHealCount > 0) {
     if (currentLang === 'ja') {
-      healTraceMarkdown = `\n\n### 🛡️ [Self-Healing / 自己修復成功ログ]\n一時的な障害を検知し、自律修復エンジンが指数バックオフ付きリトライを実行しました：\n`;
+      healTraceMarkdown = `\n\n### [Self-Healing / 自己修復成功ログ]\n一時的な障害を検知し、自律修復エンジンが指数バックオフ付きリトライを実行しました：\n`;
       retryLogs.forEach(log => {
         healTraceMarkdown += `* \`[Triage: TRANSIENT]\` ${log}\n`;
       });
       healTraceMarkdown += `* **自己修復結果**: ${selfHealCount}回目のリトライでデータ永続化およびセマンティックマッピングに成功し、動的平衡を復旧しました。\n`;
     } else {
-      healTraceMarkdown = `\n\n### 🛡️ [Self-Healing Success Log]\nTransient anomaly detected. The resilience engine performed exponential backoff retries:\n`;
+      healTraceMarkdown = `\n\n### [Self-Healing Success Log]\nTransient anomaly detected. The resilience engine performed exponential backoff retries:\n`;
       retryLogs.forEach(log => {
         healTraceMarkdown += `* \`[Triage: TRANSIENT]\` ${log}\n`;
       });
@@ -437,13 +437,13 @@ app.post('/api/sendNoise', async (req, res) => {
     if (currentLang === 'ja') {
       let relationshipReport = "既存の記憶（Engram）との交差共鳴は検知されませんでした。";
       if (matchedRelations.length > 0) {
-        relationshipReport = `### 🧬 以下の過去の記憶との「共鳴（リンク）」を検知しました：\n\n`;
+        relationshipReport = `### 過去の記憶との「共鳴（リンク）」を検知しました：\n\n`;
         matchedRelations.forEach((r, idx) => {
           relationshipReport += `* **[共鳴ノード #${idx+1}]** 類似度スコア: \`${r.strength.toFixed(2)}\` | 接続先ID: \`${r.to_engram_id}\`\n  * *接続の文脈*: ${r.reason_of_connection}\n`;
         });
       }
 
-      agentResponse = `### 🧠 EngramAtlas-Core 自己組織化プロセス (Day 3-5 Active)
+      agentResponse = `### EngramAtlas-Core 自己組織化プロセス (Day 3-5 Active)
 
 1. **境界面での情報代謝**:
    - 新規インプットを細胞膜で受容し、最新の \`${embedModel}\` モデルを用いて 3,072次元 の Gemini Embeddings ベクトルを動的に生成しました。
@@ -456,17 +456,17 @@ app.post('/api/sendNoise', async (req, res) => {
    - アクション \`"self_organize_link"\` を代謝ログに追加。システムのエントロピーが削減されました。${healTraceMarkdown}
 
 ---
-> 🧬 **自己組織化ステータス**: GREEN (適合 / 記憶 of 動的平衡が確立されました)`;
+> **自己組織化ステータス**: GREEN (適合 / 記憶の動的平衡が確立されました)`;
     } else {
       let relationshipReport = "No overlapping resonance detected with past memories.";
       if (matchedRelations.length > 0) {
-        relationshipReport = `### 🧬 Conceptual Resonance Detected with Past Memories:\n\n`;
+        relationshipReport = `### Conceptual Resonance Detected with Past Memories:\n\n`;
         matchedRelations.forEach((r, idx) => {
           relationshipReport += `* **[Resonant Node #${idx+1}]** Similarity: \`${r.strength.toFixed(2)}\` | target ID: \`${r.to_engram_id}\`\n  * *Resonant Context*: ${r.reason_of_connection}\n`;
         });
       }
 
-      agentResponse = `### 🧠 EngramAtlas-Core Self-Organization Process (Day 3-5 Active)
+      agentResponse = `### EngramAtlas-Core Self-Organization Process (Day 3-5 Active)
 
 1. **Information Metabolism at the Interface**:
    - Ingested raw input and dynamically generated a 3,072-dimensional Gemini Embeddings vector utilizing \`${embedModel}\`.
@@ -479,7 +479,7 @@ app.post('/api/sendNoise', async (req, res) => {
    - Recorded \`"self_organize_link"\` action to the metabolism log. System entropy has been successfully regulated.${healTraceMarkdown}
 
 ---
-> 🧬 **Metabolism Status**: GREEN (Dynamic equilibrium and memory weaving active)`;
+> **Metabolism Status**: GREEN (Dynamic equilibrium and memory weaving active)`;
     }
   }
 
