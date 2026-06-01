@@ -249,9 +249,23 @@ async function generateUrlSummaryNoise(linkUrl, currentLang, apiKey) {
 
 // Translate physical visual details or document elements via Gemini Multimodal into text thoughts
 async function generateMultimodalNoise(attachment, currentLang, apiKey) {
-  const prompt = currentLang === 'ja'
-    ? `添付された画像（またはドキュメント）を深く観察してください。ここに描かれているスケッチ、物理的な不均質特性（木目や反りなど）、図面、あるいは物理的な美学・デザイン意図を解釈し、背後に潜む「思考ノイズ（未完のアイデアや直感的なひらめき）」として日本語1〜2段落で言語化・翻訳してください。余計な解説や前置きは完全に省き、要約された思考テキストのみを返してください。`
-    : `Please carefully observe the attached image or document. Interpret the sketch, physical characteristics (wood warp, material texture, etc.), drawing, or design aesthetics/intent displayed, and translate/verbalize it into 1 or 2 elegant paragraphs of "thought noise" (raw intuition, unfinished idea) in English. Do not include any greetings or commentary. Return ONLY the translated thought text.`;
+  const isAudio = attachment.mimeType.startsWith('audio/');
+  const isPdf = attachment.mimeType === 'application/pdf';
+
+  let prompt = "";
+  if (currentLang === 'ja') {
+    if (isAudio) {
+      prompt = `添付された音声ファイルを聴いてください。ここに含まれる思考、会話、物理的なノイズ、またはアイデアを深く解釈し、背後に潜む「思考ノイズ（未完のアイデアや直感的なひらめき）」として日本語1〜2段落で言語化・翻訳してください。余計な解説や前置きは完全に省き、要約された思考テキストのみを返してください。`;
+    } else {
+      prompt = `添付された画像（またはドキュメント）を深く観察してください。ここに描かれているスケッチ、物理的な不均質特性（木目や反りなど）、図面、あるいは物理的な美学・デザイン意図を解釈し、背後に潜む「思考ノイズ（未完のアイデアや直感的なひらめき）」として日本語1〜2段落で言語化・翻訳してください。余計な解説や前置きは完全に省き、要約された思考テキストのみを返してください。`;
+    }
+  } else {
+    if (isAudio) {
+      prompt = `Please carefully listen to the attached audio. Interpret the thoughts, spoken ideas, or raw background context, and translate/verbalize it into 1 or 2 elegant paragraphs of "thought noise" (raw intuition, unfinished idea) in English. Do not include any greetings or commentary. Return ONLY the translated thought text.`;
+    } else {
+      prompt = `Please carefully observe the attached image or document. Interpret the sketch, physical characteristics (wood warp, material texture, etc.), drawing, or design aesthetics/intent displayed, and translate/verbalize it into 1 or 2 elegant paragraphs of "thought noise" (raw intuition, unfinished idea) in English. Do not include any greetings or commentary. Return ONLY the translated thought text.`;
+    }
+  }
 
   if (apiKey && apiKey !== 'your_gemini_api_key_here') {
     try {
@@ -286,10 +300,19 @@ async function generateMultimodalNoise(attachment, currentLang, apiKey) {
     }
   }
 
-  const isPdf = attachment.mimeType === 'application/pdf';
+  let mediaTypeStrJa = 'ビジュアルコンテキスト（画像）';
+  let mediaTypeStrEn = 'visual context (image)';
+  if (isPdf) {
+    mediaTypeStrJa = '情報構造（PDF）';
+    mediaTypeStrEn = 'information structure (PDF)';
+  } else if (isAudio) {
+    mediaTypeStrJa = '聴覚コンテキスト（音声）';
+    mediaTypeStrEn = 'auditory context (audio)';
+  }
+
   return currentLang === 'ja'
-    ? `[添付メディア: ${attachment.name}] 物理的境界面から放射された${isPdf ? '情報構造（PDF）' : 'ビジュアルコンテキスト（画像）'}を、マテリアルの反りや不均質性を受容するアプローチにおいて美しく解読しました。`
-    : `[Attached Media: ${attachment.name}] Successfully decoded the ${isPdf ? 'information structure (PDF)' : 'visual context (image)'} projected from the physical interface, embracing its material imperfection and boundaries.`;
+    ? `[添付メディア: ${attachment.name}] 物理的境界面から放射された${mediaTypeStrJa}を、マテリアルの反りや不均質性を受容するアプローチにおいて美しく解読しました。`
+    : `[Attached Media: ${attachment.name}] Successfully decoded the ${mediaTypeStrEn} projected from the physical interface, embracing its material imperfection and boundaries.`;
 }
 
 // ----------------------------------------------------
@@ -491,7 +514,8 @@ app.post('/api/sendNoise', async (req, res) => {
   if (attachment) {
     console.log(`📸 [Processing Multimodal Input]: "${attachment.name}" (${attachment.mimeType})`);
     translatedNoise = await generateMultimodalNoise(attachment, currentLang, apiKey);
-    inputType = attachment.mimeType.startsWith('image/') ? 'image' : 'pdf';
+    inputType = attachment.mimeType.startsWith('image/') ? 'image' : 
+                attachment.mimeType.startsWith('audio/') ? 'audio' : 'pdf';
     detailTags.push(inputType);
   }
 

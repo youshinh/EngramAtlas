@@ -304,6 +304,59 @@
         filter: brightness(1.1);
         transform: scale(1.02);
       }
+
+      /* Premium glassmorphism 3-button style for direct access */
+      .media-circle-btn {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+      }
+      .media-circle-btn:hover {
+        transform: translateY(-2px);
+      }
+      .media-circle-btn:active {
+        transform: translateY(1px) scale(0.95);
+      }
+      .circle-icon-wrapper {
+        width: 3.5rem;
+        height: 3.5rem;
+        border-radius: 50%;
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
+      }
+      .dark-theme .circle-icon-wrapper {
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+      }
+      .media-circle-btn:hover .circle-icon-wrapper {
+        border-color: var(--text-main);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+        background-color: rgba(0, 0, 0, 0.015);
+      }
+      .dark-theme .media-circle-btn:hover .circle-icon-wrapper {
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        background-color: rgba(255, 255, 255, 0.015);
+      }
+      
+      /* Subtle premium glow for voice recorder icon */
+      .voice-glow {
+        border-color: rgba(239, 68, 68, 0.3);
+      }
+      .media-circle-btn:hover .voice-glow {
+        border-color: rgba(239, 68, 68, 0.7);
+        box-shadow: 0 0 15px rgba(239, 68, 68, 0.15);
+      }
+      .dark-theme .media-circle-btn:hover .voice-glow {
+        box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+      }
+      
+      .text-xxs {
+        font-size: 0.65rem;
+      }
     </style>
   </head>
   <body class="flex items-center justify-center p-6 relative">
@@ -358,22 +411,62 @@
             <input type="url" id="linkInput" class="w-full pl-11 pr-4 py-2.5 rounded-xl minimal-input text-xs tracking-widest placeholder-gray-400" placeholder="Web Link (URL)">
           </div>
 
-          <!-- File Upload Zone -->
-          <div class="relative">
-            <label for="fileAttachment" class="w-full attachment-zone">
-              <!-- Paperclip minimal line SVG -->
-              <span id="uiUploadIcon" class="mb-2 opacity-50" style="color: var(--text-sub);">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+          <!-- Media Input Control Zone (Wabi-Sabi Premium Design) -->
+          <div class="relative w-full glass-container rounded-2xl p-5 border flex flex-col items-center space-y-4" style="border-color: var(--border-color); background-color: var(--input-bg);">
+            <span id="uiUploadText" class="text-xs tracking-widest text-gray-400 select-none text-center">Attach Photo / Sketch / PDF / Voice</span>
+            
+            <!-- 3連丸型アクションボタン -->
+            <div class="flex items-center justify-center space-x-6 py-1">
+              <!-- カメラ起動ボタン -->
+              <button onclick="document.getElementById('cameraAttachment').click()" class="media-circle-btn flex flex-col items-center justify-center focus:outline-none" title="Camera">
+                <span class="circle-icon-wrapper">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z"></path>
+                  </svg>
+                </span>
+                <span class="text-xxs tracking-wider mt-2 opacity-60" style="font-family: 'Playfair Display', 'Noto Serif JP', serif; font-size: 0.6rem;">CAMERA</span>
+              </button>
+              
+              <!-- マイク起動ボタン -->
+              <button onclick="document.getElementById('voiceAttachment').click()" class="media-circle-btn flex flex-col items-center justify-center focus:outline-none" title="Voice">
+                <span class="circle-icon-wrapper voice-glow">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"></path>
+                  </svg>
+                </span>
+                <span class="text-xxs tracking-wider mt-2 opacity-60" style="font-family: 'Playfair Display', 'Noto Serif JP', serif; font-size: 0.6rem;">VOICE</span>
+              </button>
+              
+              <!-- 通常ファイル選択ボタン -->
+              <button onclick="document.getElementById('fileAttachment').click()" class="media-circle-btn flex flex-col items-center justify-center focus:outline-none" title="Select File">
+                <span class="circle-icon-wrapper">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636l-3.536 3.536m0 0l-5.656 5.656a4 4 0 11-5.656-5.656l5.656-5.656a6 6 0 018.486 8.486L6.05 18a8 8 0 11-11.314-11.314l5.656-5.656"></path>
+                  </svg>
+                </span>
+                <span class="text-xxs tracking-wider mt-2 opacity-60" style="font-family: 'Playfair Display', 'Noto Serif JP', serif; font-size: 0.6rem;">FILE</span>
+              </button>
+            </div>
+            
+            <!-- 選択されたファイル名・プレビュー表示領域 -->
+            <div id="mediaPreviewContainer" class="hidden w-full flex items-center justify-between p-3 rounded-xl border fade-in" style="background-color: var(--result-bg); border-color: var(--border-color);">
+              <div class="flex items-center space-x-3">
+                <span id="previewMediaTypeIcon" class="text-lg opacity-75"></span>
+                <span id="fileNameDisplay" class="text-xs tracking-widest font-light truncate max-w-xs" style="color: var(--text-main);"></span>
+              </div>
+              <button onclick="clearSelectedMedia()" class="text-xs opacity-50 hover:opacity-100 transition-opacity duration-200 focus:outline-none" style="color: #ef4444; border: none; background: none; padding: 0;">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
-              </span>
-              <span id="uiUploadText" class="text-xs tracking-widest text-gray-400 select-none text-center">Attach Photo / Sketch / PDF (Release Media)</span>
-              <!-- Premium ergonomic micro button inside upload zone for higher affordance -->
-              <span id="uiUploadButton" class="upload-pill select-none">Select File</span>
-              <span id="fileNameDisplay" class="text-xs tracking-widest mt-1 hidden" style="color: var(--text-main);"></span>
-            </label>
-            <input type="file" id="fileAttachment" accept="image/*,application/pdf" class="hidden" onchange="handleFileSelect(this)">
+              </button>
+            </div>
           </div>
+
+          <!-- Hidden File Inputs -->
+          <input type="file" id="cameraAttachment" accept="image/*" capture="environment" class="hidden" onchange="handleFileSelect(this)">
+          <input type="file" id="voiceAttachment" accept="audio/*" capture="microphone" class="hidden" onchange="handleFileSelect(this)">
+          <input type="file" id="fileAttachment" accept="image/*,application/pdf" class="hidden" onchange="handleFileSelect(this)">
         </div>
 
         <div class="flex items-center space-x-3">
@@ -482,7 +575,7 @@
           langToggle: "日本語",
           themeDark: "DARK MODE",
           themeLight: "LIGHT MODE",
-          uploadText: "Attach Photo / Sketch / PDF (Release Media)",
+          uploadText: "Attach Photo / Sketch / PDF / Voice",
           linkPlaceholder: "Web Link (URL)",
           btnRefine: "Refine",
           btnForget: "Forget",
@@ -500,8 +593,8 @@
           btnMapAlign: "RESET"
         },
         ja: {
-          subtitle: "未分化の思考ノイズを受け止め、関係性を紡ぐ",
-          placeholder: "例：階段の段板強度計算。木目の『反り』を構造強度に組み込む逆限定アプローチ。不規則な溝（DMR）による摩擦と気流制御 of 仮説...",
+          subtitle: "未分化 of 思考ノイズを受け止め、関係性を紡ぐ",
+          placeholder: "例：階段の段板強度計算。木目の『反り』を構造強度に組み込む逆限定アプローチ。不規則な溝（DMR）による摩擦と気流制御の仮説...",
           btnSubmit: "放流（自己組織化の開始）",
           loader: "関係性を静かに紡いでいます...",
           resultTitle: "思考の軌道と創発結果",
@@ -509,7 +602,7 @@
           langToggle: "ENGLISH",
           themeDark: "ダークモード",
           themeLight: "ライトモード",
-          uploadText: "写真・スケッチ・PDFの添付（メディア放流）",
+          uploadText: "端末のカメラ・マイクに直結 / ファイルの放流",
           linkPlaceholder: "関連Webリンク (URL)",
           btnRefine: "推敲",
           btnForget: "忘却",
@@ -565,11 +658,8 @@
         document.getElementById('linkInput').placeholder = t.linkPlaceholder;
         
         const uploadLabel = document.getElementById('uiUploadText');
-        const uploadButton = document.getElementById('uiUploadButton');
-        const fileAttached = document.getElementById('fileAttachment').files.length > 0;
-        if (!fileAttached) {
+        if (uploadLabel) {
           uploadLabel.innerText = t.uploadText;
-          uploadButton.innerText = currentLang === 'en' ? "Select File" : "ファイル選択";
         }
 
         // Memory Map labels internationalization
@@ -628,37 +718,55 @@
 
       function handleFileSelect(input) {
         const file = input.files[0];
+        const previewContainer = document.getElementById('mediaPreviewContainer');
         const nameDisplay = document.getElementById('fileNameDisplay');
-        const uploadText = document.getElementById('uiUploadText');
-        const uploadIcon = document.getElementById('uiUploadIcon');
-        const uploadButton = document.getElementById('uiUploadButton');
+        const mediaIcon = document.getElementById('previewMediaTypeIcon');
 
         if (!file) {
-          selectedFileBase64 = null;
-          selectedFileMime = null;
-          selectedFileName = null;
-          nameDisplay.classList.add('hidden');
-          uploadText.classList.remove('hidden');
-          uploadIcon.classList.remove('hidden');
-          uploadButton.classList.remove('hidden');
+          clearSelectedMedia();
           return;
         }
 
         selectedFileName = file.name;
         selectedFileMime = file.type;
         
+        // Determine elegant icon based on media type
+        let iconHtml = '📎';
+        if (file.type.startsWith('image/')) {
+          iconHtml = '📷';
+        } else if (file.type.startsWith('audio/')) {
+          iconHtml = '🎙️';
+        } else if (file.type === 'application/pdf') {
+          iconHtml = '📄';
+        }
+
         const reader = new FileReader();
         reader.onload = function(e) {
           const base64Data = e.target.result.split(',')[1];
           selectedFileBase64 = base64Data;
 
+          mediaIcon.innerHTML = iconHtml;
           nameDisplay.innerText = file.name;
-          nameDisplay.classList.remove('hidden');
-          uploadText.classList.add('hidden');
-          uploadIcon.classList.add('hidden');
-          uploadButton.classList.add('hidden');
+          previewContainer.classList.remove('hidden');
         };
         reader.readAsDataURL(file);
+      }
+
+      function clearSelectedMedia() {
+        selectedFileBase64 = null;
+        selectedFileMime = null;
+        selectedFileName = null;
+        
+        // Reset all file input elements cleanly
+        const cam = document.getElementById('cameraAttachment');
+        const voice = document.getElementById('voiceAttachment');
+        const file = document.getElementById('fileAttachment');
+        if (cam) cam.value = "";
+        if (voice) voice.value = "";
+        if (file) file.value = "";
+        
+        const previewContainer = document.getElementById('mediaPreviewContainer');
+        if (previewContainer) previewContainer.classList.add('hidden');
       }
 
       // Trigger Refinement mode (pulls state back to form fields)
@@ -887,14 +995,7 @@
         linkField.value = "";
         
         // Clear file selector
-        document.getElementById('fileAttachment').value = "";
-        selectedFileBase64 = null;
-        selectedFileMime = null;
-        selectedFileName = null;
-        document.getElementById('fileNameDisplay').classList.add('hidden');
-        document.getElementById('uiUploadText').classList.remove('hidden');
-        document.getElementById('uiUploadIcon').classList.remove('hidden');
-        document.getElementById('uiUploadButton').classList.remove('hidden');
+        clearSelectedMedia();
         
         // Temporary success state for button
         btnSubmitText.innerText = currentLang === 'en' ? "Released Successfully" : "記憶の海へ放流完了";
