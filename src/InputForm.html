@@ -985,6 +985,11 @@
           activeEngramId = null;
           btnSubmit.disabled = false;
           
+          // Refresh memory map dynamically to mirror forget action
+          if (typeof mapEngine !== 'undefined' && mapEngine && typeof mapEngine.loadAll === 'function') {
+            mapEngine.loadAll();
+          }
+          
           // Temporary success state for button (Quiet crimson red)
           const btnSubmitText = document.getElementById('btnSubmitText');
           const originalBtnText = btnSubmitText.innerText;
@@ -1120,6 +1125,11 @@
         
         // Clear file selector
         clearSelectedMedia();
+        
+        // Refresh memory map dynamically after new engram woven/updated
+        if (typeof mapEngine !== 'undefined' && mapEngine && typeof mapEngine.loadAll === 'function') {
+          mapEngine.loadAll();
+        }
         
         // Temporary success state for button
         btnSubmitText.innerText = currentLang === 'en' ? "Released Successfully" : "記憶の海へ放流完了";
