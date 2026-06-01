@@ -491,23 +491,37 @@
           <!-- Silent Elegant Header with Navigation and Metadata -->
           <div class="flex justify-between items-center mb-4 pb-2 border-b" style="border-color: var(--border-color);">
             <!-- Actions (Refine, Export to AI, Forget) -->
-            <div class="flex items-center space-x-4 select-none" style="font-family: 'Playfair Display', 'Noto Serif JP', serif; font-weight: 300;">
-              <button onclick="triggerRefine()" id="btnRefineAction" class="text-xs tracking-widest transition-all duration-300 underline underline-offset-4 decoration-1 opacity-50 hover:opacity-100 flex items-center justify-center" style="color: var(--text-sub); border: none; background: none; padding: 0;">
-                Refine
+            <div class="flex items-center space-x-3 select-none relative" style="font-family: 'Playfair Display', 'Noto Serif JP', serif; font-weight: 300;">
+              <!-- Refine Button (Micro Premium Icon) -->
+              <button onclick="triggerRefine()" id="btnRefineAction" class="p-1.5 rounded-lg border transition-all duration-300 opacity-60 hover:opacity-100 hover:scale-102 flex items-center justify-center focus:outline-none" style="border-color: var(--border-color); background-color: var(--card-bg); color: var(--text-main);" title="Refine (推敲)">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"></path>
+                </svg>
               </button>
-              <button onclick="triggerCognitiveCopy()" id="btnExportAction" class="text-xs tracking-widest transition-all duration-300 underline underline-offset-4 decoration-1 opacity-50 hover:opacity-100 flex items-center justify-center" style="color: #3b82f6; border: none; background: none; padding: 0;">
-                Export to AI
+              
+              <!-- Export to AI Button (Micro Premium Icon) -->
+              <button onclick="triggerCognitiveCopy()" id="btnExportAction" class="p-1.5 rounded-lg border transition-all duration-300 opacity-60 hover:opacity-100 hover:scale-102 flex items-center justify-center focus:outline-none" style="border-color: var(--border-color); background-color: var(--card-bg); color: #3b82f6;" title="Export to AI (AIへ送る)">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15M9 12l3 3m0 0l3-3m-3 3V2.25"></path>
+                </svg>
               </button>
-              <button onclick="triggerForgetConfirmation()" id="btnForgetAction" class="text-xs tracking-widest transition-all duration-300 underline underline-offset-4 decoration-1 opacity-50 hover:opacity-100 flex items-center justify-center" style="color: #ef4444; border: none; background: none; padding: 0;">
-                Forget
+              
+              <!-- Forget Button (Micro Premium Icon) -->
+              <button onclick="triggerForgetConfirmation()" id="btnForgetAction" class="p-1.5 rounded-lg border transition-all duration-300 opacity-60 hover:opacity-100 hover:scale-102 flex items-center justify-center focus:outline-none" style="border-color: var(--border-color); background-color: var(--card-bg); color: #ef4444;" title="Forget (忘却)">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"></path>
+                </svg>
               </button>
+              
+              <!-- Floating Smart Status Toast (Micro-text) -->
+              <span id="headerStatusToast" class="text-xxs tracking-widest transition-all duration-300 opacity-0 transform translate-x-2 hidden font-light" style="color: #10b981; font-family: 'Noto Serif JP', serif;"></span>
               
               <!-- Inline Forget Confirmation (Ultra-thin elegant dialogue style) -->
               <div id="forgetConfirmation" class="hidden flex items-center space-x-3 text-xs" style="font-family: 'Playfair Display', 'Noto Serif JP', serif; font-weight: 300;">
                 <span id="uiForgetConfirmText" class="text-red-500 tracking-widest opacity-80 select-none">Forget?</span>
-                <button onclick="confirmForget()" id="btnForgetYes" class="text-xs tracking-widest transition-all duration-300 underline underline-offset-4 decoration-1 hover:opacity-100 flex items-center justify-center" style="color: #ef4444; border: none; background: none; padding: 0;">Yes</button>
+                <button onclick="confirmForget()" id="btnForgetYes" class="text-xs tracking-widest transition-all duration-300 underline underline-offset-4 decoration-1 hover:opacity-100 flex items-center justify-center focus:outline-none" style="color: #ef4444; border: none; background: none; padding: 0;">Yes</button>
                 <span class="opacity-30" style="color: var(--text-sub);">/</span>
-                <button onclick="cancelForget()" id="btnForgetNo" class="text-xs tracking-widest transition-all duration-300 underline underline-offset-4 decoration-1 opacity-50 hover:opacity-100 flex items-center justify-center" style="color: var(--text-sub); border: none; background: none; padding: 0;">No</button>
+                <button onclick="cancelForget()" id="btnForgetNo" class="text-xs tracking-widest transition-all duration-300 underline underline-offset-4 decoration-1 opacity-50 hover:opacity-100 flex items-center justify-center focus:outline-none" style="color: var(--text-sub); border: none; background: none; padding: 0;">No</button>
               </div>
             </div>
             
@@ -651,14 +665,17 @@
         }
         
         document.getElementById('btnCancelText').innerText = t.btnCancel;
-        document.getElementById('btnRefineAction').innerText = t.btnRefine;
+        
+        // Update tooltips for micro-icon actions to preserve vector SVGs
+        const btnRefine = document.getElementById('btnRefineAction');
+        if (btnRefine) btnRefine.title = t.btnRefine;
         
         const btnExport = document.getElementById('btnExportAction');
-        if (btnExport) {
-          btnExport.innerText = t.btnExport;
-        }
+        if (btnExport) btnExport.title = t.btnExport;
         
-        document.getElementById('btnForgetAction').innerText = t.btnForget;
+        const btnForget = document.getElementById('btnForgetAction');
+        if (btnForget) btnForget.title = t.btnForget;
+        
         document.getElementById('uiForgetConfirmText').innerText = t.forgetConfirm;
         
         document.getElementById('uiLoaderText').innerText = t.loader;
@@ -787,8 +804,8 @@
         if (!activeEngramId) return;
 
         const btnExport = document.getElementById('btnExportAction');
+        const toast = document.getElementById('headerStatusToast');
         btnExport.disabled = true;
-        const originalText = translations[currentLang].btnExport;
 
         fetch(`/api/getEngram?id=${activeEngramId}`)
           .then(res => {
@@ -825,24 +842,53 @@
             return navigator.clipboard.writeText(mdText);
           })
           .then(() => {
-            // Micro premium interaction feedback (emerald green copy status)
-            btnExport.innerText = translations[currentLang].copied;
-            btnExport.style.color = "#10b981"; // Radiant green
+            // Micro premium interaction feedback (emerald green copy status in status toast)
+            if (toast) {
+              toast.innerText = translations[currentLang].copied;
+              toast.style.color = "#10b981"; // Radiant green
+              toast.classList.remove('hidden');
+              requestAnimationFrame(() => {
+                toast.classList.remove('opacity-0', 'translate-x-2');
+                toast.classList.add('opacity-100', 'translate-x-0');
+              });
+            }
+            btnExport.style.color = "#10b981"; // Temprarily green
             
             setTimeout(() => {
+              if (toast) {
+                toast.classList.remove('opacity-100', 'translate-x-0');
+                toast.classList.add('opacity-0', 'translate-x-2');
+                setTimeout(() => {
+                  toast.classList.add('hidden');
+                }, 300);
+              }
               btnExport.disabled = false;
-              btnExport.innerText = originalText;
               btnExport.style.color = "#3b82f6"; // Restore cognitive blue
             }, 2000);
           })
           .catch(err => {
             console.error("Failed to perform cognitive copy:", err);
-            btnExport.disabled = false;
-            btnExport.innerText = currentLang === 'en' ? "Copy Failed" : "コピー失敗";
+            if (toast) {
+              toast.innerText = currentLang === 'en' ? "Copy Failed" : "コピー失敗";
+              toast.style.color = "#ef4444"; // Error red
+              toast.classList.remove('hidden');
+              requestAnimationFrame(() => {
+                toast.classList.remove('opacity-0', 'translate-x-2');
+                toast.classList.add('opacity-100', 'translate-x-0');
+              });
+            }
             btnExport.style.color = "#ef4444";
+            
             setTimeout(() => {
-              btnExport.innerText = originalText;
-              btnExport.style.color = "#3b82f6";
+              if (toast) {
+                toast.classList.remove('opacity-100', 'translate-x-0');
+                toast.classList.add('opacity-0', 'translate-x-2');
+                setTimeout(() => {
+                  toast.classList.add('hidden');
+                }, 300);
+              }
+              btnExport.disabled = false;
+              btnExport.style.color = "#3b82f6"; // Restore cognitive blue
             }, 2000);
           });
       }
