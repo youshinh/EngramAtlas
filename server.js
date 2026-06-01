@@ -1252,7 +1252,7 @@ app.get('/api/getAllEngrams', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 ===================================================`);
   console.log(`🧬 EngramAtlas Local Development Server`);
   console.log(`🔗 URL: http://localhost:3000/`);
