@@ -490,10 +490,13 @@
           
           <!-- Silent Elegant Header with Navigation and Metadata -->
           <div class="flex justify-between items-center mb-4 pb-2 border-b" style="border-color: var(--border-color);">
-            <!-- Actions (Refine & Forget) -->
+            <!-- Actions (Refine, Export to AI, Forget) -->
             <div class="flex items-center space-x-4 select-none" style="font-family: 'Playfair Display', 'Noto Serif JP', serif; font-weight: 300;">
               <button onclick="triggerRefine()" id="btnRefineAction" class="text-xs tracking-widest transition-all duration-300 underline underline-offset-4 decoration-1 opacity-50 hover:opacity-100 flex items-center justify-center" style="color: var(--text-sub); border: none; background: none; padding: 0;">
                 Refine
+              </button>
+              <button onclick="triggerCognitiveCopy()" id="btnExportAction" class="text-xs tracking-widest transition-all duration-300 underline underline-offset-4 decoration-1 opacity-50 hover:opacity-100 flex items-center justify-center" style="color: #3b82f6; border: none; background: none; padding: 0;">
+                Export to AI
               </button>
               <button onclick="triggerForgetConfirmation()" id="btnForgetAction" class="text-xs tracking-widest transition-all duration-300 underline underline-offset-4 decoration-1 opacity-50 hover:opacity-100 flex items-center justify-center" style="color: #ef4444; border: none; background: none; padding: 0;">
                 Forget
@@ -578,6 +581,7 @@
           uploadText: "Attach Photo / Sketch / PDF / Voice",
           linkPlaceholder: "Web Link (URL)",
           btnRefine: "Refine",
+          btnExport: "Export to AI",
           btnForget: "Forget",
           forgetConfirm: "Forget?",
           btnYes: "Yes",
@@ -588,6 +592,7 @@
           updating: "Refining...",
           forgotten: "Forgotten successfully",
           refinedSuccess: "Refined successfully",
+          copied: "Copied context successfully",
           mapTitle: "Semantic Memory Space",
           mapHelp: "Drag nodes to explore resonance.",
           btnMapAlign: "RESET"
@@ -605,6 +610,7 @@
           uploadText: "端末のカメラ・マイクに直結 / ファイルの放流",
           linkPlaceholder: "関連Webリンク (URL)",
           btnRefine: "推敲",
+          btnExport: "AIへ送る",
           btnForget: "忘却",
           forgetConfirm: "忘却しますか？",
           btnYes: "はい",
@@ -615,6 +621,7 @@
           updating: "推敲中...",
           forgotten: "記憶の海へ還元されました",
           refinedSuccess: "記憶が美しく推敲されました",
+          copied: "LLM用文脈をコピーしました",
           mapTitle: "記憶共鳴空間",
           mapHelp: "ノードをドラッグして関係性を探求",
           btnMapAlign: "初期配置"
@@ -645,6 +652,12 @@
         
         document.getElementById('btnCancelText').innerText = t.btnCancel;
         document.getElementById('btnRefineAction').innerText = t.btnRefine;
+        
+        const btnExport = document.getElementById('btnExportAction');
+        if (btnExport) {
+          btnExport.innerText = t.btnExport;
+        }
+        
         document.getElementById('btnForgetAction').innerText = t.btnForget;
         document.getElementById('uiForgetConfirmText').innerText = t.forgetConfirm;
         
@@ -767,6 +780,71 @@
         
         const previewContainer = document.getElementById('mediaPreviewContainer');
         if (previewContainer) previewContainer.classList.add('hidden');
+      }
+
+      // Smart Cognitive Export to Clipboard (AI Prompt Generation)
+      function triggerCognitiveCopy() {
+        if (!activeEngramId) return;
+
+        const btnExport = document.getElementById('btnExportAction');
+        btnExport.disabled = true;
+        const originalText = translations[currentLang].btnExport;
+
+        fetch(`/api/getEngram?id=${activeEngramId}`)
+          .then(res => {
+            if (!res.ok) throw new Error("Engram not found");
+            return res.json();
+          })
+          .then(data => {
+            // Build highly intelligent prompt context Markdown
+            let mdText = `### 【記憶文脈インプット】EngramAtlas - 自己組織化された思考痕跡\n\n`;
+            mdText += `以下の情報は、自律型思考エンジン「EngramAtlas」によって記憶空間上にマッピングされ、関係性が定義されたユーザーの思考ノイズです。このコンテキストを踏まえた上で、新しいひらめきの創発やアイデアの深化、課題解決への対話を行ってください。\n\n`;
+            mdText += `#### 1. アクティブな思考ノイズ (Current Thought Node)\n`;
+            mdText += `> ${data.content}\n\n`;
+            mdText += `* **入力メタデータ**:\n`;
+            mdText += `  - 入力方法: \`${data.raw_input_type || 'text'}\`\n`;
+            mdText += `  - 登録日時: ${new Date(data.created_at).toLocaleString(currentLang === 'ja' ? 'ja-JP' : 'en-US')}\n`;
+            if (data.metadata && data.metadata.tags && data.metadata.tags.length > 0) {
+              mdText += `  - 関連タグ: ${data.metadata.tags.map(t => `#${t}`).join(' ')}\n`;
+            }
+            
+            if (data.related_links && data.related_links.length > 0) {
+              mdText += `\n#### 2. 共鳴している関連思考ノイズ (Semantic Resonance & Contexts)\n`;
+              mdText += `この思考は、過去の以下の記憶とセマンティックに共振し、動的エッジが結ばれています：\n\n`;
+              data.related_links.forEach((link, idx) => {
+                mdText += `**[関連記憶 #${idx + 1}]** (類似度: \`${(link.strength * 100).toFixed(1)}%\`)\n`;
+                mdText += `> ${link.to_engram_content || '(本文取得エラー)'}\n`;
+                mdText += `* *エージェントが推論した関係性の文脈*:\n`;
+                mdText += `  - "${link.reason_of_connection}"\n\n`;
+              });
+            }
+
+            mdText += `\n---\n*※ Generated by EngramAtlas - Dynamic Equilibrium Mind Engine*`;
+
+            // Copy to clipboard
+            return navigator.clipboard.writeText(mdText);
+          })
+          .then(() => {
+            // Micro premium interaction feedback (emerald green copy status)
+            btnExport.innerText = translations[currentLang].copied;
+            btnExport.style.color = "#10b981"; // Radiant green
+            
+            setTimeout(() => {
+              btnExport.disabled = false;
+              btnExport.innerText = originalText;
+              btnExport.style.color = "#3b82f6"; // Restore cognitive blue
+            }, 2000);
+          })
+          .catch(err => {
+            console.error("Failed to perform cognitive copy:", err);
+            btnExport.disabled = false;
+            btnExport.innerText = currentLang === 'en' ? "Copy Failed" : "コピー失敗";
+            btnExport.style.color = "#ef4444";
+            setTimeout(() => {
+              btnExport.innerText = originalText;
+              btnExport.style.color = "#3b82f6";
+            }, 2000);
+          });
       }
 
       // Trigger Refinement mode (pulls state back to form fields)

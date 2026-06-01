@@ -872,6 +872,28 @@ app.get('/api/getEngram', async (req, res) => {
         if (!engram) {
           return res.status(404).json({ error: "Engram not found" });
         }
+
+        // Resolving to_engram_content for related_links to assist client-side AI exports
+        if (engram.related_links && engram.related_links.length > 0) {
+          const resolvedLinks = [];
+          for (const link of engram.related_links) {
+            try {
+              const targetId = new ObjectId(link.to_engram_id);
+              const targetDoc = await engramsCollection.findOne({ _id: targetId }, { projection: { content: 1 } });
+              resolvedLinks.push({
+                ...link,
+                to_engram_content: targetDoc ? targetDoc.content : ""
+              });
+            } catch (e) {
+              resolvedLinks.push({
+                ...link,
+                to_engram_content: ""
+              });
+            }
+          }
+          engram.related_links = resolvedLinks;
+        }
+
         return res.json(engram);
       } finally {
         await dbClient.close();
@@ -881,6 +903,18 @@ app.get('/api/getEngram', async (req, res) => {
       if (!engram) {
         return res.status(404).json({ error: "Engram not found" });
       }
+
+      // Resolving to_engram_content for mock related_links
+      if (engram.related_links && engram.related_links.length > 0) {
+        engram.related_links = engram.related_links.map(link => {
+          const targetDoc = mockEngrams.find(e => e._id === link.to_engram_id);
+          return {
+            ...link,
+            to_engram_content: targetDoc ? targetDoc.content : ""
+          };
+        });
+      }
+
       return res.json(engram);
     }
   } catch (err) {
