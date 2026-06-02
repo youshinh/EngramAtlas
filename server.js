@@ -861,14 +861,80 @@ app.post('/api/sendNoise', async (req, res) => {
 
   // 3. Generate Agent Cognitive Explanation response
   let agentResponse = "";
+  
+  // Inject Self-Healing logs trace in the output if any recovery occurred
+  let healTraceMarkdown = "";
+  if (selfHealCount > 0) {
+    if (currentLang === 'ja') {
+      healTraceMarkdown = `\n\n<details>\n  <summary>＋ 自己修復ログ（指数バックオフ）を見る</summary>\n\n### [Self-Healing / 自己修復成功ログ]\n一時的な障害を検知し、自律修復エンジンが指数バックオフ付きリトライを実行しました：\n`;
+      retryLogs.forEach(log => {
+        healTraceMarkdown += `* \`[Triage: TRANSIENT]\` ${log}\n`;
+      });
+      healTraceMarkdown += `* **自己修復結果**: ${selfHealCount}回目のリトライでデータ永続化およびセマンティックマッピングに成功し、動的平衡を復旧しました。\n</details>\n`;
+    } else {
+      healTraceMarkdown = `\n\n<details>\n  <summary>＋ View Self-Healing recovery logs</summary>\n\n### [Self-Healing Success Log]\nTransient anomaly detected. The resilience engine performed exponential backoff retries:\n`;
+      retryLogs.forEach(log => {
+        healTraceMarkdown += `* \`[Triage: TRANSIENT]\` ${log}\n`;
+      });
+      healTraceMarkdown += `* **Recovery Result**: Successfully restored equilibrium on retry attempt #${selfHealCount}, securing data persistence and semantic mapping.\n</details>\n`;
+    }
+    
+    // Add self-healing logs to evolution history
+    newEngram.evolution_history.push({
+      timestamp: new Date(),
+      action: "self_heal_success",
+      comment: `Recovered from transient error after ${selfHealCount} attempts.`
+    });
+  }
+
   if (apiKey && apiKey !== 'your_gemini_api_key_here') {
     try {
       const ai = new GoogleGenAI({ apiKey });
       const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
       const langDirective = currentLang === 'ja'
-        ? "IMPORTANT: Respond in Japanese. Explain your plan, the vector embedding generation, and how you linked with past nodes if any."
-        : "IMPORTANT: Respond in English. Explain your plan, the vector embedding generation, and how you linked with past nodes if any.";
+        ? `IMPORTANT: 必ず日本語で回答してください。
+レスポンスは以下の構造に従って、マークダウン形式で出力してください：
+
+### **【統合された新たな仮説（コア・インサイト）】**
+第一原理に基づき、ユーザーの入力と記憶の交差から導き出された物理的・工学的な新たな本質的仮説・統合インサイトを端的に述べてください（無駄な前置きや「〜の計画」といった事務的な文は省き、仮説から始めてください）。
+
+### **【導出された物理的アプローチ（限界思考の適用）】**
+具体的な物理パラメータ、設計へのフィードバック、または構築における工学的アプローチ（箇条書き等）を具体的に示してください。
+
+### **【構成要素となった元の思考データ】** と **【システム実行ログ・類似度スコア・MCP通信】** の折りたたみ
+これらのシステム的な探索プロセス、ベクトルの類似度スコア、接続先ID、思考プロセスなどは、それぞれ個別のアコーディオンに格納し、デフォルト非表示にしてください。必ず次のHTML構造を使用してください：
+<details>
+  <summary>＋ 構成要素となった元の思考データを見る</summary>
+  ここに各関連ノードの内容や文脈の解説を記述。
+</details>
+<details>
+  <summary>＋ システム実行ログ・類似度スコア・MCP通信を見る</summary>
+  ここにベクトルの類似度スコア、接続先ID、思考の軌跡などを記述。
+</details>
+
+※ 類似度（Strength）が 0.90 以上の極めて近い重複・類似ノードが複数存在する場合、個別に羅列して解説するのではなく、1つの代表的な「記憶クラスター」としてマージ・要約して提示してください。`
+        : `IMPORTANT: Must respond in English.
+Please structure your response in Markdown according to the following layout:
+
+### **[Integrated Hypothesis (Core Insight)]**
+State the physical/engineering core hypothesis derived from the intersection of the input and memories. Start directly with the hypothesis (omit introductory remarks or plan descriptions).
+
+### **[Derived Physical Approach (Limiting Thinking)]**
+Provide concrete physical parameters, design feedback, or engineering approaches (e.g., bullet points) for implementation.
+
+### Constituent Source Nodes & System Execution Logs/Scores Accordions
+All debug/system logs, vector similarity scores, target IDs, and reasoning must be hidden by default using the following HTML format:
+<details>
+  <summary>＋ View constituent source thoughts</summary>
+  Describe the context/reasons of connections here.
+</details>
+<details>
+  <summary>＋ View system logs, similarity scores & MCP telemetry</summary>
+  Put similarity scores, target IDs, and planning logs here.
+</details>
+
+* If there are duplicate/highly similar nodes (similarity score >= 0.90), group/merge them into a single "memory cluster" in your explanation instead of listing them one by one.`;
 
       const response = await ai.models.generateContent({
         model: model,
@@ -876,7 +942,7 @@ app.post('/api/sendNoise', async (req, res) => {
           { 
             role: 'user', 
             parts: [{ 
-              text: `Processed Input: "${processedInputText}"\n\nThis noise was saved (ID: ${dbResultId}). Connections made: ${JSON.stringify(matchedRelations)}\n\nReport your thinking process and how you dynamically weaved these connections.\n\n${langDirective}` 
+              text: `Processed Input: "${processedInputText}"\n\nThis noise was saved (ID: ${dbResultId}). Connections made: ${JSON.stringify(matchedRelations)}\n\n${langDirective}` 
             }] 
           },
         ],
@@ -889,31 +955,6 @@ app.post('/api/sendNoise', async (req, res) => {
     }
   }
 
-  // Inject Self-Healing logs trace in the output if any recovery occurred
-  let healTraceMarkdown = "";
-  if (selfHealCount > 0) {
-    if (currentLang === 'ja') {
-      healTraceMarkdown = `\n\n### [Self-Healing / 自己修復成功ログ]\n一時的な障害を検知し、自律修復エンジンが指数バックオフ付きリトライを実行しました：\n`;
-      retryLogs.forEach(log => {
-        healTraceMarkdown += `* \`[Triage: TRANSIENT]\` ${log}\n`;
-      });
-      healTraceMarkdown += `* **自己修復結果**: ${selfHealCount}回目のリトライでデータ永続化およびセマンティックマッピングに成功し、動的平衡を復旧しました。\n`;
-    } else {
-      healTraceMarkdown = `\n\n### [Self-Healing Success Log]\nTransient anomaly detected. The resilience engine performed exponential backoff retries:\n`;
-      retryLogs.forEach(log => {
-        healTraceMarkdown += `* \`[Triage: TRANSIENT]\` ${log}\n`;
-      });
-      healTraceMarkdown += `* **Recovery Result**: Successfully restored equilibrium on retry attempt #${selfHealCount}, securing data persistence and semantic mapping.\n`;
-    }
-    
-    // Add self-healing logs to evolution history
-    newEngram.evolution_history.push({
-      timestamp: new Date(),
-      action: "self_heal_success",
-      comment: `Recovered from transient error after ${selfHealCount} attempts.`
-    });
-  }
-
   // Append self-healing logs even if we got a real agent response from Gemini API!
   if (agentResponse && healTraceMarkdown) {
     agentResponse += healTraceMarkdown;
@@ -922,38 +963,76 @@ app.post('/api/sendNoise', async (req, res) => {
   // Fallback formatting for agent responses if API key is not active or failed
   if (!agentResponse) {
     if (currentLang === 'ja') {
-      let relationshipReport = "既存の記憶（Engram）との交差共鳴は検知されませんでした。";
+      let relationshipReport = "既存 of 記憶（Engram）との交差共鳴は検知されませんでした。";
+      let detailsReport = "関連する過去の記憶ノードはありません。";
+      
       if (matchedRelations.length > 0) {
-        relationshipReport = `### 過去の記憶との「共鳴（リンク）」を検知しました：\n\n`;
+        relationshipReport = `過去の記憶と交差する共鳴を検知しました。既存のパラメータ（類似度 >= 0.55）に基づき、新たなセマンティック境界の接続を確立しました。`;
+        detailsReport = `### 過去の記憶との「共鳴（リンク）」を検知しました：\n\n`;
         matchedRelations.forEach((r, idx) => {
-          relationshipReport += `* **[共鳴ノード #${idx+1}]** 類似度スコア: \`${r.strength.toFixed(2)}\` | 接続先ID: \`${r.to_engram_id}\`\n  * *接続の文脈*: ${r.reason_of_connection}\n`;
+          detailsReport += `* **[共鳴ノード #${idx+1}]** 類似度スコア: \`${r.strength.toFixed(2)}\` | 接続先ID: \`${r.to_engram_id}\`\n  * *接続の文脈*: ${r.reason_of_connection}\n`;
         });
       }
 
-      agentResponse = `### EngramAtlas-Core 自己組織化プロセス (Day 3-5 Active)
+      agentResponse = `**【統合された新たな仮説（コア・インサイト）】**
+> ${processedInputText.substring(0, 150)}${processedInputText.length > 150 ? '...' : ''}
+
+**【導出された物理的アプローチ（限界思考の適用）】**
+* 記憶空間内での自己組織化による多次元的結合プロセスの実行
+* ベクトル探索とセマンティック境界に基づく双方向エッジ構築の自動適用
+
+<details>
+  <summary>＋ 構成要素となった元の思考データを見る</summary>
+
+${detailsReport}
+</details>
+
+<details>
+  <summary>＋ システム実行ログ・類似度スコア・MCP通信を見る</summary>
+
+### EngramAtlas-Core 自己組織化プロセス (Day 3-5 Active)
 
 1. **境界面での情報代謝**:
-   - 新規インプットを細胞膜で受容し、最新の \`${embedModel}\` モデルを用いて 3,072次元 の Gemini Embeddings ベクトルを動的に生成しました。
+   - 新規インプットを受容し、最新の \`${embedModel}\` モデルを用いて 3,072次元 の Gemini Embeddings ベクトルを動的に生成しました。
 
 2. **記憶の代謝・探索結果**:
    - ${relationshipReport}
    - 新規ドキュメント (\`db_id: ${dbResultId}\`) に \`related_links\` が双方向で正しく結線されました。
 
 3. **進化履歴の記録**:
-   - アクション \`"self_organize_link"\` を代謝ログに追加。システムのエントロピーが削減されました。${healTraceMarkdown}
+   - アクション \`"self_organize_link"\` を代謝ログに追加。システムのエントロピーが削減されました。
 
 ---
-> **自己組織化ステータス**: GREEN (適合 / 記憶の動的平衡が確立されました)`;
+> **自己組織化ステータス**: GREEN (適合 / 記憶の動的平衡が確立されました)
+</details>${healTraceMarkdown}`;
     } else {
       let relationshipReport = "No overlapping resonance detected with past memories.";
+      let detailsReport = "No related memory nodes found.";
       if (matchedRelations.length > 0) {
-        relationshipReport = `### Conceptual Resonance Detected with Past Memories:\n\n`;
+        relationshipReport = `Overlapping resonance detected with past memories. Established new semantic boundaries.`;
+        detailsReport = `### Conceptual Resonance Detected with Past Memories:\n\n`;
         matchedRelations.forEach((r, idx) => {
-          relationshipReport += `* **[Resonant Node #${idx+1}]** Similarity: \`${r.strength.toFixed(2)}\` | target ID: \`${r.to_engram_id}\`\n  * *Resonant Context*: ${r.reason_of_connection}\n`;
+          detailsReport += `* **[Resonant Node #${idx+1}]** Similarity: \`${r.strength.toFixed(2)}\` | target ID: \`${r.to_engram_id}\`\n  * *Resonant Context*: ${r.reason_of_connection}\n`;
         });
       }
 
-      agentResponse = `### EngramAtlas-Core Self-Organization Process (Day 3-5 Active)
+      agentResponse = `**[Integrated Hypothesis (Core Insight)]**
+> ${processedInputText.substring(0, 150)}${processedInputText.length > 150 ? '...' : ''}
+
+**[Derived Physical Approach (Limiting Thinking)]**
+* Execution of multi-dimensional association processes inside the memory space.
+* Automated bi-directional edge building utilizing vector search and semantic boundaries.
+
+<details>
+  <summary>＋ View constituent source thoughts</summary>
+
+${detailsReport}
+</details>
+
+<details>
+  <summary>＋ View system logs, similarity scores & MCP telemetry</summary>
+
+### EngramAtlas-Core Self-Organization Process (Day 3-5 Active)
 
 1. **Information Metabolism at the Interface**:
    - Ingested raw input and dynamically generated a 3,072-dimensional Gemini Embeddings vector utilizing \`${embedModel}\`.
@@ -963,10 +1042,11 @@ app.post('/api/sendNoise', async (req, res) => {
    - Bi-directional \`related_links\` successfully established for the new node (\`db_id: ${dbResultId}\`).
 
 3. **Evolution Log**:
-   - Recorded \`"self_organize_link"\` action to the metabolism log. System entropy has been successfully regulated.${healTraceMarkdown}
+   - Recorded \`"self_organize_link"\` action to the metabolism log. System entropy has been successfully regulated.
 
 ---
-> **Metabolism Status**: GREEN (Dynamic equilibrium and memory weaving active)`;
+> **Metabolism Status**: GREEN (Dynamic equilibrium and memory weaving active)
+</details>${healTraceMarkdown}`;
     }
   }
 
@@ -1400,6 +1480,94 @@ app.post('/api/updateEngram', async (req, res) => {
     }
   } catch (err) {
     console.error(`❌ [Refine Error]:`, err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/search', async (req, res) => {
+  const { query, lang } = req.query;
+  const currentLang = lang || 'en';
+  const apiKey = process.env.GEMINI_API_KEY;
+  const mongoUri = process.env.MONGODB_URI;
+
+  if (!query || !query.trim()) {
+    return res.status(400).json({ error: "Query is empty" });
+  }
+
+  try {
+    const embedding = await getEmbedding(query, apiKey);
+
+    if (isMongoActive && mongoUri && mongoUri !== 'mongodb_connection_string_here') {
+      const dbClient = new MongoClient(mongoUri);
+      await dbClient.connect();
+      try {
+        const db = dbClient.db('engram_atlas');
+        const engramsCollection = db.collection('engrams');
+
+        // Attempt MongoDB Atlas Vector Search ($vectorSearch)
+        try {
+          const results = await engramsCollection.aggregate([
+            {
+              $vectorSearch: {
+                index: "vector_index",
+                path: "vector_embeddings",
+                queryVector: embedding,
+                numCandidates: 100,
+                limit: 10
+              }
+            },
+            {
+              $project: {
+                vector_embeddings: 0,
+                score: { $meta: "vectorSearchScore" }
+              }
+            }
+          ]).toArray();
+
+          if (results && results.length > 0) {
+            console.log(`🔍 [MongoDB Atlas Vector Search] Found ${results.length} matches for "${query}"`);
+            return res.json(results);
+          }
+        } catch (vectorSearchErr) {
+          console.warn("⚠️ [MongoDB Atlas Vector Search Failed] Falling back to manual memory scan:", vectorSearchErr.message);
+        }
+
+        // Fallback: local memory scan over Mongo documents
+        const allEngrams = await engramsCollection.find({}).toArray();
+        const results = allEngrams.map(e => {
+          let score = 0;
+          if (e.vector_embeddings) {
+            score = cosineSimilarity(embedding, e.vector_embeddings);
+          }
+          const { vector_embeddings, ...rest } = e;
+          return { ...rest, score };
+        })
+        .filter(e => e.score >= 0.35)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 10);
+
+        return res.json(results);
+      } finally {
+        await dbClient.close();
+      }
+    } else {
+      // Mock DB manual similarity scan
+      const results = mockEngrams.map(e => {
+        let score = 0;
+        if (e.vector_embeddings) {
+          score = cosineSimilarity(embedding, e.vector_embeddings);
+        }
+        const { vector_embeddings, ...rest } = e;
+        return { ...rest, score };
+      })
+      .filter(e => e.score >= 0.35)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10);
+
+      return res.json(results);
+    }
+  } catch (err) {
+    console.error("❌ [Search API Error]:", err.message);
     return res.status(500).json({ error: err.message });
   }
 });

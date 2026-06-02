@@ -558,6 +558,18 @@
             </span>
           </div>
           
+          <!-- Premium Semantic Search Input Container -->
+          <div class="mb-4 flex items-center space-x-2">
+            <div class="relative flex-grow">
+              <input type="text" id="mapSearchInput" placeholder="Search semantic meaning..." onkeydown="if(event.key==='Enter') performSemanticSearch()" class="w-full px-4 py-2 rounded-xl text-xs font-light tracking-wide focus:outline-none transition-all duration-300 border" style="background-color: var(--input-bg); border-color: var(--border-color); color: var(--text-main);">
+            </div>
+            <button onclick="performSemanticSearch()" class="px-4 py-2 rounded-xl border hover:scale-102 transition-all duration-300 flex items-center space-x-1" style="background-color: var(--input-bg); border-color: var(--border-color); color: var(--text-main);">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3.5 w-3.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.637 10.637Z" />
+              </svg>
+            </button>
+          </div>
+
           <!-- Elegant Interactive Canvas container -->
           <div class="relative w-full rounded-2xl overflow-hidden border" style="border-color: var(--border-color); background-color: var(--input-bg);">
             <canvas id="memoryMapCanvas" width="448" height="280" class="w-full h-70 block cursor-grab active:cursor-grabbing"></canvas>
@@ -621,13 +633,14 @@
           copied: "Copied context successfully",
           mapTitle: "Semantic Memory Space",
           mapHelp: "Drag nodes to explore resonance.",
-          btnMapAlign: "RESET"
+          btnMapAlign: "RESET",
+          searchPlaceholder: "Search semantic meaning..."
         },
         ja: {
           subtitle: "未分化 of 思考ノイズを受け止め、関係性を紡ぐ",
           placeholder: "例：階段の段板強度計算。木目の『反り』を構造強度に組み込む逆限定アプローチ。不規則な溝（DMR）による摩擦と気流制御の仮説...",
           btnSubmit: "リリース",
-          loader: "関係性を静かに紡いでいます...",
+          loader: "関係性を静かに紡いています...",
           resultTitle: "思考の軌道と創発結果",
           footer: "※関係性の規約としての記憶。絶え間なく移り変わる動的平衡。",
           langToggle: "En",
@@ -650,7 +663,8 @@
           copied: "LLM用文脈をコピーしました",
           mapTitle: "記憶共鳴空間",
           mapHelp: "ノードをドラッグして関係性を探求",
-          btnMapAlign: "初期配置"
+          btnMapAlign: "初期配置",
+          searchPlaceholder: "意味で記憶を検索..."
         }
       };
 
@@ -723,6 +737,11 @@
         document.getElementById('uiFooterText').innerText = t.footer;
         
         document.getElementById('langToggleText').innerText = t.langToggle;
+        
+        const mapSearchInput = document.getElementById('mapSearchInput');
+        if (mapSearchInput) {
+          mapSearchInput.placeholder = t.searchPlaceholder;
+        }
 
         // Dynamic labels for Multimodal Inputs
         document.getElementById('linkInput').placeholder = t.linkPlaceholder;
@@ -1257,9 +1276,39 @@
           this.links = [];
           
           if (!engrams || engrams.length === 0) return;
+
+          // Scalability Optimization: Filter nodes if they exceed 35 items
+          let filteredEngrams = engrams;
+          if (engrams.length > 35) {
+            console.log(`🧹 [Map Scaling Active] Filtering ${engrams.length} engrams down to active focus subset.`);
+            
+            // Find active node and its direct neighbors
+            const activeNode = engrams.find(e => e._id.toString() === activeEngramId);
+            const neighborIds = new Set();
+            if (activeNode && activeNode.related_links) {
+              activeNode.related_links.forEach(link => neighborIds.add(link.to_engram_id.toString()));
+            }
+
+            // Always keep active node, its neighbors, and fill up to 35 using the most recent nodes
+            const focusSet = new Set();
+            if (activeEngramId) focusSet.add(activeEngramId);
+            neighborIds.forEach(id => focusSet.add(id));
+
+            // Sort engrams by date descending to get the most recent ones
+            const sortedByRecent = [...engrams].sort((a, b) => {
+              return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+            });
+
+            for (const e of sortedByRecent) {
+              if (focusSet.size >= 35) break;
+              focusSet.add(e._id.toString());
+            }
+
+            filteredEngrams = engrams.filter(e => focusSet.has(e._id.toString()));
+          }
           
           // 1. Create nodes elegantly
-          engrams.forEach((e, idx) => {
+          filteredEngrams.forEach((e, idx) => {
             const id = e._id.toString();
             let x = this.width / 2 + Math.cos(idx) * 80;
             let y = this.height / 2 + Math.sin(idx) * 80;
@@ -1389,6 +1438,28 @@
             n.vy += dy * gravityStrength;
             n.vz += dz * gravityStrength;
           });
+          
+          // Focus Repulsion: push non-active nodes away from the active/selected node to ease clickability
+          if (activeEngramId) {
+            const activeNode = this.nodes.find(n => n.id === activeEngramId);
+            if (activeNode) {
+              this.nodes.forEach(n => {
+                if (n.id === activeEngramId || n === this.draggedNode) return;
+                
+                const dx = n.x - activeNode.x;
+                const dy = n.y - activeNode.y;
+                const dz = n.z - activeNode.z;
+                const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+                
+                if (dist < 180) {
+                  const pushStrength = 4000 / (dist * dist); // Strong local push force
+                  n.vx += (dx / dist) * pushStrength;
+                  n.vy += (dy / dist) * pushStrength;
+                  n.vz += (dz / dist) * pushStrength;
+                }
+              });
+            }
+          }
           
           // B. Node-Node Coulomb Repulsion (avoids overlaps)
           for (let i = 0; i < this.nodes.length; i++) {
@@ -1900,6 +1971,39 @@
           };
           requestAnimationFrame(loop);
         }
+      }
+
+      function performSemanticSearch() {
+        const queryInput = document.getElementById('mapSearchInput');
+        const query = queryInput.value.trim();
+        if (!query) return;
+
+        document.getElementById('loader').classList.remove('hidden');
+        document.getElementById('resultContainer').classList.add('hidden');
+
+        fetch(`/api/search?query=${encodeURIComponent(query)}&lang=${currentLang}`)
+          .then(res => res.json())
+          .then(data => {
+            document.getElementById('loader').classList.add('hidden');
+            if (data && data.length > 0) {
+              const topMatch = data[0];
+              activeEngramId = topMatch._id.toString();
+
+              // Display details
+              mapEngine.displaySelectedEngram({ id: activeEngramId });
+
+              // Rebuild the network to focus on the search match
+              mapEngine.loadAll();
+            } else {
+              const contentContainer = document.getElementById('resultContent');
+              contentContainer.innerHTML = `<p class="text-xs italic" style="color: var(--text-sub);">${currentLang === 'ja' ? '一致する記憶が見つかりませんでした。' : 'No matching memory found.'}</p>`;
+              document.getElementById('resultContainer').classList.remove('hidden');
+            }
+          })
+          .catch(err => {
+            console.error("Semantic search failed:", err);
+            document.getElementById('loader').classList.add('hidden');
+          });
       }
 
       // Initialize mapping engine globally
