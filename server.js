@@ -876,20 +876,33 @@ app.get('/api/getEngram', async (req, res) => {
         // Resolving to_engram_content for related_links to assist client-side AI exports
         if (engram.related_links && engram.related_links.length > 0) {
           const resolvedLinks = [];
-          for (const link of engram.related_links) {
+
+          // ⚡ Bolt: Fix N+1 query problem by batching fetching related contents
+          const targetIds = engram.related_links.map(link => {
             try {
-              const targetId = new ObjectId(link.to_engram_id);
-              const targetDoc = await engramsCollection.findOne({ _id: targetId }, { projection: { content: 1 } });
-              resolvedLinks.push({
-                ...link,
-                to_engram_content: targetDoc ? targetDoc.content : ""
-              });
+              return new ObjectId(link.to_engram_id);
             } catch (e) {
-              resolvedLinks.push({
-                ...link,
-                to_engram_content: ""
-              });
+              return null;
             }
+          }).filter(id => id !== null);
+
+          let targetDocsMap = {};
+          if (targetIds.length > 0) {
+            const targetDocs = await engramsCollection.find(
+              { _id: { $in: targetIds } },
+              { projection: { content: 1 } }
+            ).toArray();
+
+            targetDocs.forEach(doc => {
+              targetDocsMap[doc._id.toString()] = doc.content;
+            });
+          }
+
+          for (const link of engram.related_links) {
+            resolvedLinks.push({
+              ...link,
+              to_engram_content: targetDocsMap[link.to_engram_id] || ""
+            });
           }
           engram.related_links = resolvedLinks;
         }
@@ -950,7 +963,7 @@ app.post('/api/forgetEngram', async (req, res) => {
         // 2. 参照のちぎり取り（他のすべての related_links から db_id への参照を pull する）
         const updateRes = await engramsCollection.updateMany(
           {},
-          { $pull: { related_links: { to_engram_id: db_id } } }
+          { $pull: { related_links: { to_engram_id: db_id.toString() } } }
         );
 
         console.log(`🗑️ [MongoDB] Deleted engram. Success: ${deleteRes.deletedCount > 0}. Cleared references: ${updateRes.modifiedCount}`);
@@ -1037,7 +1050,7 @@ app.post('/api/updateEngram', async (req, res) => {
         // a. 相手ノードからの古い参照の完全クリーンアップ（この db_id への参照を pull する）
         await engramsCollection.updateMany(
           {},
-          { $pull: { related_links: { to_engram_id: db_id } } }
+          { $pull: { related_links: { to_engram_id: db_id.toString() } } }
         );
 
         // b. 自身の更新（related_links を一旦空にする）
