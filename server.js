@@ -14,6 +14,23 @@ app.use(express.json({ limit: '20mb' }));
 let mockEngrams = [];
 let isMongoActive = false;
 
+// Attempt to connect to MongoDB on startup to check status
+const mongoUri = process.env.MONGODB_URI;
+if (mongoUri && mongoUri !== 'mongodb_connection_string_here') {
+  const startupDbClient = new MongoClient(mongoUri);
+  startupDbClient.connect()
+    .then(async () => {
+      isMongoActive = true;
+      console.log("🟢 [MongoDB Atlas] Connection established on startup. isMongoActive set to true.");
+      await startupDbClient.close();
+    })
+    .catch(err => {
+      console.warn("⚠️ [MongoDB Atlas] Startup connection failed, using mock fallback:", err.message);
+      isMongoActive = false;
+    });
+}
+
+
 // Load AGENT.MD system instructions
 let systemInstruction = "あなたは計算生命体進化エンジン「EngramAtlas-Core」です。";
 try {

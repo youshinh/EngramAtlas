@@ -1233,8 +1233,10 @@
           this.draggedNode = null;
           this.hoveredNode = null;
           
-          this.width = this.canvas.width;
-          this.height = this.canvas.height;
+          // Setup High-DPI Resolution & Responsiveness
+          this.setupDpr();
+          this.resizeListener = () => this.setupDpr();
+          window.addEventListener('resize', this.resizeListener);
           
           this.k = 45; // Spring base force constant
           this.repulsionConstant = 1200; // Repulsion force constant
@@ -1257,6 +1259,24 @@
           this.initEvents();
           this.startSimulation();
         }
+
+        setupDpr() {
+          const rect = this.canvas.getBoundingClientRect();
+          const dpr = window.devicePixelRatio || 1;
+          
+          // Set internal drawing buffer scaled by DPR
+          this.canvas.width = rect.width * dpr;
+          this.canvas.height = rect.height * dpr;
+          
+          // logical dimensions match client bounding box
+          this.width = rect.width;
+          this.height = rect.height;
+          
+          // Scale drawing context to draw in logical coordinates
+          this.ctx.resetTransform();
+          this.ctx.scale(dpr, dpr);
+        }
+
 
         // Load all engrams and metabolise them into map layout
         loadAll() {
@@ -1322,7 +1342,11 @@
             }
             
             // Generate clean node metadata/summary
-            let text = e.content || "";
+            let cleanText = (e.content || "")
+              .replace(/[#*`_~\[\]()\-+=>]/g, '') // Remove Markdown formatting symbols
+              .replace(/\s+/g, ' ')               // Normalize whitespace
+              .trim();
+            let text = cleanText;
             if (text.length > 25) text = text.substring(0, 22) + "...";
             
             this.nodes.push({
@@ -1566,18 +1590,14 @@
           const centerX = this.width / 2;
           const centerY = this.height / 2;
           const focus = 300; // Focal distance for 3D Perspective projection
-          
-          // Sync node radius highlights based on active node
-          this.nodes.forEach(n => {
-            n.radius = n.id === activeEngramId ? 18 : 12;
-          });
+          const isDark = document.body.classList.contains('dark-theme');
           
           // Project 3D coordinate with camera rotation, pan and zoom
-          const project = (n) => {
+          const project = (x, y, z) => {
             // Subtract center
-            let rx = n.x - centerX;
-            let ry = n.y - centerY;
-            let rz = n.z;
+            let rx = x - centerX;
+            let ry = y - centerY;
+            let rz = z;
             
             // 1. Rotate around Y-axis (Yaw)
             const cosY = Math.cos(this.cameraAngleY);
@@ -1598,20 +1618,38 @@
             return {
               x: centerX + x1 * scale + this.panX,
               y: centerY + y2 * scale + this.panY,
-              scale: scale
+              scale: scale,
+              z2: z2
             };
           };
+
+          // Sync node radius highlights based on active node
+          this.nodes.forEach(n => {
+            n.radius = n.id === activeEngramId ? 18 : 12;
+          });
           
-          // 1. Draw Links (Weaved paths of light with perspective and Wabi-Sabi color codes)
+          // 2. Pre-calculate projections for all nodes
+          const projectedNodes = this.nodes.map(n => {
+            const proj = project(n.x, n.y, n.z);
+            return {
+              node: n,
+              x: proj.x,
+              y: proj.y,
+              scale: proj.scale,
+              z2: proj.z2
+            };
+          });
+          
+          // Map to look up projected coordinates by node ID quickly
+          const projMap = new Map(projectedNodes.map(p => [p.node.id, p]));
+          
+          // 3. Draw Links (Minimalist clean paths of light with perspective)
           this.links.forEach(l => {
-            const nA = this.nodes.find(n => n.id === l.source);
-            const nB = this.nodes.find(n => n.id === l.target);
-            if (!nA || !nB) return;
+            const pA = projMap.get(l.source);
+            const pB = projMap.get(l.target);
+            if (!pA || !pB) return;
             
-            const pA = project(nA);
-            const pB = project(nB);
-            
-            const isHighlight = nA.id === activeEngramId || nB.id === activeEngramId;
+            const isHighlight = l.source === activeEngramId || l.target === activeEngramId;
             
             this.ctx.beginPath();
             this.ctx.moveTo(pA.x, pA.y);
@@ -1619,8 +1657,6 @@
             
             // Perspective average scale
             const avgScale = (pA.scale + pB.scale) / 2;
-            
-            const isDark = document.body.classList.contains('dark-theme');
             let colorStr = "";
             
             if (isHighlight) {
@@ -1628,100 +1664,127 @@
             } else {
               // Wabi-Sabi low-saturation color coding based on similarity strength
               if (l.strength >= 0.85) {
-                // 淡青磁 (ウスアオジ) - smoky mint blue-green
                 colorStr = isDark ? "rgba(163, 197, 191, " : "rgba(110, 155, 146, ";
               } else if (l.strength >= 0.70) {
-                // 白菫 (シロスミレ) - smoky pale lavender
                 colorStr = isDark ? "rgba(182, 185, 212, " : "rgba(132, 137, 175, ";
               } else {
-                // 薄鈍 (ウスネズ) - smoky pale gray
                 colorStr = isDark ? "rgba(148, 155, 163, " : "rgba(115, 122, 130, ";
               }
             }
             
-            const alpha = isHighlight ? 0.75 : (l.strength * 0.35);
-            this.ctx.strokeStyle = colorStr + (alpha * avgScale) + ")";
-            this.ctx.lineWidth = (isHighlight ? 1.75 : 1.0) * avgScale;
-            
-            // Dotted pattern for light resonance
-            if (!isHighlight) {
-              this.ctx.setLineDash([2 * avgScale, 4 * avgScale]);
-            } else {
-              this.ctx.setLineDash([]);
-            }
+            // Draw faint, ultra-thin solid lines instead of busy dotted lines
+            const alpha = isHighlight ? 0.75 : (l.strength * 0.12); // Reduced opacity for non-highlighted lines
+            this.ctx.strokeStyle = colorStr + (alpha * avgScale * avgScale) + ")";
+            this.ctx.lineWidth = (isHighlight ? 1.5 : 0.7) * avgScale;
             this.ctx.stroke();
           });
-          this.ctx.setLineDash([]); // Reset
           
-          // Sort nodes by Z depth descending (paint back-to-front / painter's algorithm)
-          const sortedNodes = [...this.nodes].sort((a, b) => b.z - a.z);
+          // 4. Sort nodes by scale ASCENDING (further away is drawn first / Painter's Algorithm)
+          projectedNodes.sort((a, b) => a.scale - b.scale);
           
-          // 2. Draw Nodes (Memory cells with dynamic 3D scale and aura)
-          sortedNodes.forEach(n => {
-            const proj = project(n);
-            const scale = proj.scale;
+          // 5. Pass 1: Draw ALL Node Circles (Memory cells with dynamic 3D scale, fog, and aura)
+          projectedNodes.forEach(p => {
+            const n = p.node;
+            const scale = p.scale;
             
             const isActive = n.id === activeEngramId;
             const isHover = n === this.hoveredNode;
             
             this.ctx.beginPath();
-            this.ctx.arc(proj.x, proj.y, n.radius * scale, 0, Math.PI * 2);
             
-            const isDark = document.body.classList.contains('dark-theme');
-            
-            // Premium micro-shadow/blur aura for active memory nodes
-            if (isActive) {
-              this.ctx.shadowColor = isDark ? "rgba(96, 165, 250, 0.4)" : "rgba(37, 99, 235, 0.25)";
-              this.ctx.shadowBlur = 12 * scale;
-            } else {
-              this.ctx.shadowBlur = 0;
-            }
-            
-            // Fill color matching premium glassmorphism theme with 3D scale opacity
-            const nodeAlpha = (isHover || isActive) ? 1.0 : (0.55 * scale);
-            if (isActive) {
-              this.ctx.fillStyle = isDark ? `rgba(30, 41, 59, ${nodeAlpha})` : `rgba(255, 255, 255, ${nodeAlpha})`;
-            } else if (isHover) {
-              this.ctx.fillStyle = isDark ? `rgba(45, 55, 72, ${nodeAlpha})` : `rgba(240, 244, 248, ${nodeAlpha})`;
-            } else {
-              this.ctx.fillStyle = isDark ? `rgba(20, 24, 37, ${nodeAlpha})` : `rgba(255, 255, 255, ${nodeAlpha})`;
-            }
-            this.ctx.fill();
-            
-            // Outline border with 3D scale
-            if (isActive) {
-              this.ctx.strokeStyle = isDark ? `rgba(96, 165, 250, ${nodeAlpha})` : `rgba(37, 99, 235, ${nodeAlpha})`;
-              this.ctx.lineWidth = 2.0 * scale;
-            } else {
-              this.ctx.strokeStyle = isDark ? `rgba(160, 174, 192, ${0.4 * scale})` : `rgba(113, 128, 150, ${0.45 * scale})`;
-              this.ctx.lineWidth = 1.25 * scale;
-            }
-            this.ctx.stroke();
-            
-            this.ctx.shadowBlur = 0; // Reset
-            
-            // Render Elegant Labels for nodes with 3D projection scaling
             if (isHover || isActive) {
-              const fontSize = (0.65 * scale).toFixed(2);
-              this.ctx.font = `300 ${fontSize}rem 'Noto Serif JP', serif`;
-              this.ctx.fillStyle = isDark ? `rgba(241, 245, 249, ${nodeAlpha})` : `rgba(30, 41, 59, ${nodeAlpha})`;
+              this.ctx.arc(p.x, p.y, n.radius * scale, 0, Math.PI * 2);
+              
+              // Premium micro-shadow/blur aura for active or close foreground memory nodes
+              if (isActive) {
+                this.ctx.shadowColor = isDark ? "rgba(96, 165, 250, 0.4)" : "rgba(37, 99, 235, 0.25)";
+                this.ctx.shadowBlur = 12 * scale;
+              } else if (isHover && scale > 0.8) {
+                this.ctx.shadowColor = isDark ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.1)";
+                this.ctx.shadowBlur = 8 * scale;
+              } else {
+                this.ctx.shadowBlur = 0;
+              }
+              
+              // Fill color matching premium glassmorphism theme with Z-fog opacity
+              const depthFog = Math.min(1.0, Math.max(0.15, scale * scale)); // Quadratic fog fade
+              const nodeAlpha = (isHover || isActive) ? 1.0 : (0.55 * depthFog);
+              
+              if (isActive) {
+                this.ctx.fillStyle = isDark ? `rgba(30, 41, 59, ${nodeAlpha})` : `rgba(255, 255, 255, ${nodeAlpha})`;
+              } else {
+                this.ctx.fillStyle = isDark ? `rgba(45, 55, 72, ${nodeAlpha})` : `rgba(240, 244, 248, ${nodeAlpha})`;
+              }
+              this.ctx.fill();
+              
+              // Outline border with 3D scale and depth fade
+              if (isActive) {
+                this.ctx.strokeStyle = isDark ? `rgba(96, 165, 250, ${nodeAlpha})` : `rgba(37, 99, 235, ${nodeAlpha})`;
+                this.ctx.lineWidth = 2.0 * scale;
+              } else {
+                this.ctx.strokeStyle = isDark ? `rgba(160, 174, 192, ${0.6 * depthFog})` : `rgba(113, 128, 150, ${0.65 * depthFog})`;
+                this.ctx.lineWidth = 1.25 * scale;
+              }
+              this.ctx.stroke();
+            } else {
+              // Minimal tiny core circle for non-active nodes to highlight clean architecture
+              const depthFog = Math.min(1.0, Math.max(0.15, scale * scale));
+              this.ctx.arc(p.x, p.y, 2.5 * scale, 0, Math.PI * 2);
+              this.ctx.fillStyle = isDark ? `rgba(160, 174, 192, ${0.6 * depthFog})` : `rgba(113, 128, 150, ${0.6 * depthFog})`;
+              this.ctx.fill();
+            }
+            this.ctx.shadowBlur = 0; // Reset shadow
+          });
+          
+          // 6. Pass 2: Draw ALL Active/Hovered Text Labels on TOP of all nodes
+          projectedNodes.forEach(p => {
+            const n = p.node;
+            const scale = p.scale;
+            
+            const isActive = n.id === activeEngramId;
+            const isHover = n === this.hoveredNode;
+            
+            if (isHover || isActive) {
+              const fontSize = Math.max(10, Math.round(11.5 * scale));
+              this.ctx.font = `300 ${fontSize}px 'Noto Serif JP', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
               this.ctx.textAlign = "center";
-              this.ctx.fillText(n.text, proj.x, proj.y - (n.radius * scale) - 8);
+              this.ctx.textBaseline = "middle";
+
+              const labelY = p.y - (n.radius * scale) - 10;
+              const depthFog = Math.min(1.0, Math.max(0.15, scale * scale));
+              const nodeAlpha = (isHover || isActive) ? 1.0 : (0.55 * depthFog);
+
+              // Draw thick background text stroke for legibility/contrast
+              this.ctx.save();
+              this.ctx.strokeStyle = isDark ? "rgba(15, 23, 42, 0.9)" : "rgba(255, 255, 255, 0.9)";
+              this.ctx.lineWidth = 4;
+              this.ctx.lineJoin = "round";
+              this.ctx.strokeText(n.text, p.x, labelY);
+              
+              this.ctx.fillStyle = isDark ? `rgba(241, 245, 249, ${nodeAlpha})` : `rgba(30, 41, 59, ${nodeAlpha})`;
+              this.ctx.fillText(n.text, p.x, labelY);
+              this.ctx.restore();
               
               // Tags overview in small font if hovered
               if (isHover && n.tags && n.tags.length > 0) {
                 const tagStr = n.tags.slice(0, 2).map(t => `#${t.toLowerCase()}`).join(" ");
-                const tagFontSize = (0.55 * scale).toFixed(2);
-                this.ctx.font = `200 ${tagFontSize}rem 'Noto Serif JP', serif`;
+                const tagFontSize = Math.max(9, Math.round(9.5 * scale));
+                
+                this.ctx.save();
+                this.ctx.font = `200 ${tagFontSize}px 'Noto Serif JP', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+                
+                const tagY = p.y + (n.radius * scale) + 14;
+                
+                // Draw background stroke for tags as well
+                this.ctx.strokeStyle = isDark ? "rgba(15, 23, 42, 0.9)" : "rgba(255, 255, 255, 0.9)";
+                this.ctx.lineWidth = 3;
+                this.ctx.lineJoin = "round";
+                this.ctx.strokeText(tagStr, p.x, tagY);
+
                 this.ctx.fillStyle = isDark ? `rgba(148, 163, 184, ${nodeAlpha})` : `rgba(100, 116, 139, ${nodeAlpha})`;
-                this.ctx.fillText(tagStr, proj.x, proj.y + (n.radius * scale) + 14);
+                this.ctx.fillText(tagStr, p.x, tagY);
+                this.ctx.restore();
               }
-            } else {
-              // Minimal tiny core circle for non-active nodes to highlight clean architecture
-              this.ctx.beginPath();
-              this.ctx.arc(proj.x, proj.y, 2.5 * scale, 0, Math.PI * 2);
-              this.ctx.fillStyle = isDark ? `rgba(160, 174, 192, ${0.6 * scale})` : `rgba(113, 128, 150, ${0.6 * scale})`;
-              this.ctx.fill();
             }
           });
         }
