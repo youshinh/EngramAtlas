@@ -65,6 +65,48 @@ function getMockEmbedding(text) {
   return vector;
 }
 
+// Pre-populate mock database with initial beautiful engrams to prevent empty canvas
+const initialNoise1 = "階段の段板における木目の『反り』を構造強度に組み込む逆限定設計。DMR加工による気流と滑り止め制御。";
+const initialNoise2 = "不均質マテリアル（癖木や端材）の長所を活かす匠の技と、境界面における流体抵抗削減（DMR）技術の共振。";
+const initialNoise3 = "関係性の規約としての自己組織化メモリ。静的なドキュメント管理を超えて、意味のゆらぎをリアルタイムにマッピングする。";
+
+mockEngrams = [
+  {
+    _id: "sample_1",
+    content: initialNoise1,
+    raw_input_type: "text",
+    created_at: new Date(Date.now() - 7200000),
+    metadata: { scope: "PERSONAL", tags: ["architecture", "wood-physics", "DMR"], entropy_score: 0.85 },
+    vector_embeddings: getMockEmbedding(initialNoise1),
+    related_links: [
+      { to_engram_id: "sample_2", strength: 0.88, reason_of_connection: "不均質マテリアルの性質を最大限活用する設計哲学において共鳴" }
+    ],
+    evolution_history: [{ timestamp: new Date(Date.now() - 7200000), action: "create", comment: "Initial sample node" }]
+  },
+  {
+    _id: "sample_2",
+    content: initialNoise2,
+    raw_input_type: "text",
+    created_at: new Date(Date.now() - 3600000),
+    metadata: { scope: "PERSONAL", tags: ["material-science", "craftsmanship"], entropy_score: 0.72 },
+    vector_embeddings: getMockEmbedding(initialNoise2),
+    related_links: [
+      { to_engram_id: "sample_1", strength: 0.88, reason_of_connection: "不均質マテリアルの性質を最大限活用する設計哲学において共鳴" }
+    ],
+    evolution_history: [{ timestamp: new Date(Date.now() - 3600000), action: "create", comment: "Initial sample node" }]
+  },
+  {
+    _id: "sample_3",
+    content: initialNoise3,
+    raw_input_type: "text",
+    created_at: new Date(),
+    metadata: { scope: "PERSONAL", tags: ["philosophy", "memory-network"], entropy_score: 0.55 },
+    vector_embeddings: getMockEmbedding(initialNoise3),
+    related_links: [],
+    evolution_history: [{ timestamp: new Date(), action: "create", comment: "Initial sample node" }]
+  }
+];
+
 // ----------------------------------------------------
 // 🛡️ Day 6-8 Resilience and Triage Core Logic
 // ----------------------------------------------------
@@ -182,12 +224,32 @@ const http = require('http');
 const dns = require('dns');
 
 // Helper to fetch remote web page title and text preview (supporting User-Agent, redirects, & SSRF protection)
-function fetchUrlTitleAndText(targetUrl, redirectCount = 0) {
+// Helper to fetch remote web page title and text preview (supporting User-Agent, redirects, & SSRF protection)
+function fetchUrlTitleAndText(targetUrl, redirectCount = 0, visitedUrls = []) {
   return new Promise((resolve) => {
     if (redirectCount > 5) {
       console.warn(`↪️ [Redirect Limit Exceeded] Max redirect limit of 5 hit for: ${targetUrl}`);
       return resolve({ title: "Redirect Limit Exceeded", content: "Too many redirects" });
     }
+
+    if (visitedUrls.includes(targetUrl)) {
+      console.warn(`↪️ [Redirect Loop Detected] Loop on: ${targetUrl}`);
+      return resolve({ title: "Redirect Loop Detected", content: "Authentication required or infinite redirect loop." });
+    }
+
+    // Check for authorization/signin URLs commonly causing redirect loops
+    if (
+      targetUrl.includes('oauth2authorize') || 
+      targetUrl.includes('accounts.google.com') || 
+      targetUrl.includes('oauth2callback') ||
+      targetUrl.includes('/signin') ||
+      targetUrl.includes('/login')
+    ) {
+      console.warn(`↪️ [Auth Page Detected] Skipping fetch for security/auth page: ${targetUrl}`);
+      return resolve({ title: "Authentication Required", content: "This page requires authentication (Google Account/OAuth2) and cannot be crawled." });
+    }
+
+    visitedUrls.push(targetUrl);
 
     try {
       const parsedUrl = new URL(targetUrl);
@@ -232,6 +294,7 @@ function fetchUrlTitleAndText(targetUrl, redirectCount = 0) {
         }
       };
       
+      const client = parsedUrl.protocol === 'https:' ? https : http;
       const req = client.get(targetUrl, options, (res) => {
         // Handle HTTP Redirects (301, 302, 303, 307, 308)
         if ([301, 302, 303, 307, 308].includes(res.statusCode)) {
@@ -241,7 +304,7 @@ function fetchUrlTitleAndText(targetUrl, redirectCount = 0) {
               location = new URL(location, targetUrl).href;
             }
             console.log(`↪️ [HTTP Redirect]: ${targetUrl} -> ${location} (${res.statusCode})`);
-            return resolve(fetchUrlTitleAndText(location, redirectCount + 1));
+            return resolve(fetchUrlTitleAndText(location, redirectCount + 1, visitedUrls));
           }
         }
         
@@ -813,7 +876,7 @@ app.post('/api/sendNoise', async (req, res) => {
           { 
             role: 'user', 
             parts: [{ 
-              text: `User Input: "${userInput}"\n\nThis noise was saved (ID: ${dbResultId}). Connections made: ${JSON.stringify(matchedRelations)}\n\nReport your thinking process and how you dynamically weaved these connections.\n\n${langDirective}` 
+              text: `Processed Input: "${processedInputText}"\n\nThis noise was saved (ID: ${dbResultId}). Connections made: ${JSON.stringify(matchedRelations)}\n\nReport your thinking process and how you dynamically weaved these connections.\n\n${langDirective}` 
             }] 
           },
         ],

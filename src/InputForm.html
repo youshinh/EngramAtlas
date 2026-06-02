@@ -373,19 +373,19 @@
     <div class="w-full max-w-lg glass-container p-4 sm:p-8 rounded-2xl sm:rounded-3xl relative z-10">
       
       <!-- Header & Controllers responsive container -->
-      <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-6 sm:mb-8 pr-0 sm:pr-28 relative">
-        <div class="text-center sm:text-left">
+      <div class="flex flex-row justify-between items-start mb-6 sm:mb-8 pr-20 sm:pr-28 relative">
+        <div class="text-left">
           <h1 class="text-2xl sm:text-3xl font-light serif-header mb-1 sm:mb-2 tracking-widest">EngramAtlas</h1>
           <p id="uiSubtitle" class="text-xxs sm:text-xs tracking-wider" style="color: var(--text-sub);">
             Receiving undifferentiated thought noise, weaving relationships.
           </p>
         </div>
         
-        <!-- Language & Theme Controllers (Mobile inline, Desktop top-right) -->
-        <div class="flex items-center justify-center space-x-2 mt-3 sm:mt-0 sm:absolute sm:top-0 sm:right-0" style="z-index: 20;">
+        <!-- Language & Theme Controllers (Always absolute top-right) -->
+        <div class="absolute top-0 right-0 flex items-center space-x-2" style="z-index: 20;">
           <!-- Language Selector Button -->
           <button onclick="toggleLanguage()" class="control-pill focus:outline-none">
-            <span id="langToggleText">日本語</span>
+            <span id="langToggleText">Ja</span>
           </button>
           
           <!-- Theme Switch Button (Pure SVG Icon for Ergonomic Minimalism) -->
@@ -397,88 +397,98 @@
 
       <!-- Input Form -->
       <div class="space-y-6">
-        <div>
-          <textarea id="noiseInput" class="w-full h-40 p-4 rounded-xl minimal-input text-sm leading-relaxed placeholder-gray-400" placeholder="e.g., Strength calculation of stair treads. Reverse limitation approach integrating wood grain 'warp' into structural strength. Hypothesis of controlling friction and airflow with irregular grooves (DMR)..."></textarea>
-        </div>
-
-        <!-- Multimodal Options (Quiet & Elegant) -->
-        <div class="space-y-4">
-          <!-- Web Link Input Box -->
-          <div class="relative flex items-center">
-            <span class="absolute left-4 opacity-50" style="color: var(--text-sub);">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"></path>
-              </svg>
-            </span>
-            <input type="url" id="linkInput" class="w-full pl-11 pr-4 py-2.5 rounded-xl minimal-input text-xs tracking-widest placeholder-gray-400" placeholder="Web Link (URL)">
+        
+        <!-- Unified Premium Chat Input Box -->
+        <div class="w-full rounded-2xl border flex flex-col focus-within:ring-1 focus-within:ring-current overflow-hidden transition-all duration-300" style="background-color: var(--input-bg); border-color: var(--border-color);">
+          <!-- Textarea -->
+          <textarea id="noiseInput" class="w-full h-32 p-4 bg-transparent border-none focus:outline-none focus:ring-0 text-sm leading-relaxed placeholder-gray-400" placeholder="e.g., Strength calculation of stair treads. Reverse limitation approach integrating wood grain 'warp' into structural strength..."></textarea>
+          
+          <!-- Web Link Input Box (Expandable) -->
+          <div id="linkInputWrapper" class="hidden px-4 pb-3">
+            <div class="relative flex items-center">
+              <span class="absolute left-3 opacity-50" style="color: var(--text-sub);">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"></path>
+                </svg>
+              </span>
+              <input type="url" id="linkInput" class="w-full pl-9 pr-4 py-2 rounded-xl minimal-input text-xs tracking-widest placeholder-gray-400" placeholder="Web Link (URL)">
+            </div>
           </div>
 
-          <!-- Media Input Control Zone (Wabi-Sabi Premium Design) -->
-          <div class="relative w-full glass-container rounded-2xl p-5 border flex flex-col items-center space-y-4" style="border-color: var(--border-color); background-color: var(--input-bg);">
-            <span id="uiUploadText" class="text-xs tracking-widest text-gray-400 select-none text-center">Attach Photo / Sketch / PDF / Voice</span>
-            
-            <!-- 3連丸型アクションボタン -->
-            <div class="flex items-center justify-center space-x-6 py-1">
-              <!-- カメラ起動ボタン -->
-              <button onclick="document.getElementById('cameraAttachment').click()" class="media-circle-btn flex flex-col items-center justify-center focus:outline-none" title="Camera">
-                <span class="circle-icon-wrapper">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"></path>
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z"></path>
-                  </svg>
-                </span>
-                <span class="text-xxs tracking-wider mt-2 opacity-60" style="font-family: 'Playfair Display', 'Noto Serif JP', serif; font-size: 0.6rem;">CAMERA</span>
-              </button>
-              
-              <!-- マイク起動ボタン -->
-              <button onclick="document.getElementById('voiceAttachment').click()" class="media-circle-btn flex flex-col items-center justify-center focus:outline-none" title="Voice">
-                <span class="circle-icon-wrapper voice-glow">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"></path>
-                  </svg>
-                </span>
-                <span class="text-xxs tracking-wider mt-2 opacity-60" style="font-family: 'Playfair Display', 'Noto Serif JP', serif; font-size: 0.6rem;">VOICE</span>
-              </button>
-              
-              <!-- 通常ファイル選択ボタン -->
-              <button onclick="document.getElementById('fileAttachment').click()" class="media-circle-btn flex flex-col items-center justify-center focus:outline-none" title="Select File">
-                <span class="circle-icon-wrapper">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
-                  </svg>
-                </span>
-                <span class="text-xxs tracking-wider mt-2 opacity-60" style="font-family: 'Playfair Display', 'Noto Serif JP', serif; font-size: 0.6rem;">FILE</span>
-              </button>
-            </div>
-            
-            <!-- 選択されたファイル名・プレビュー表示領域 -->
-            <div id="mediaPreviewContainer" class="hidden w-full flex items-center justify-between p-3 rounded-xl border fade-in" style="background-color: var(--result-bg); border-color: var(--border-color);">
-              <div class="flex items-center space-x-3">
-                <span id="previewMediaTypeIcon" class="text-lg opacity-75"></span>
-                <span id="fileNameDisplay" class="text-xs tracking-widest font-light truncate max-w-xs" style="color: var(--text-main);"></span>
+          <!-- Selected Media Preview Container (Dynamic) -->
+          <div id="mediaPreviewContainer" class="hidden px-4 pb-3">
+            <div class="w-full flex items-center justify-between p-2.5 rounded-xl border fade-in text-xxs" style="background-color: var(--result-bg); border-color: var(--border-color);">
+              <div class="flex items-center space-x-2">
+                <span id="previewMediaTypeIcon" class="text-sm opacity-75"></span>
+                <span id="fileNameDisplay" class="tracking-widest font-light truncate max-w-xs" style="color: var(--text-main);"></span>
               </div>
-              <button onclick="clearSelectedMedia()" class="text-xs opacity-50 hover:opacity-100 transition-opacity duration-200 focus:outline-none" style="color: #ef4444; border: none; background: none; padding: 0;">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <button onclick="clearSelectedMedia()" class="opacity-50 hover:opacity-100 transition-opacity duration-200 focus:outline-none" style="color: #ef4444; border: none; background: none; padding: 0;">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
               </button>
             </div>
           </div>
 
-          <!-- Hidden File Inputs -->
-          <input type="file" id="cameraAttachment" accept="image/*" capture="environment" class="hidden" onchange="handleFileSelect(this)">
-          <input type="file" id="voiceAttachment" accept="audio/*" capture="microphone" class="hidden" onchange="handleFileSelect(this)">
-          <input type="file" id="fileAttachment" accept="image/*,application/pdf" class="hidden" onchange="handleFileSelect(this)">
+          <!-- Bottom Control Bar -->
+          <div class="flex items-center justify-between px-3 py-3 border-t" style="border-color: var(--border-color);">
+            <div class="flex items-center space-x-2">
+              <!-- Expand '+' Toggle Button -->
+              <button onclick="toggleDrawer()" id="btnDrawerToggle" class="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 hover:bg-black/5 dark:hover:bg-white/5 focus:outline-none" style="color: var(--text-sub);" title="Add Media/Link">
+                <svg id="drawerToggleIcon" class="w-5 h-5 transition-transform duration-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"></path>
+                </svg>
+              </button>
+              
+              <!-- Expanding Attachment Options Drawer -->
+              <div id="attachmentDrawer" class="flex items-center space-x-2 opacity-0 max-w-0 overflow-hidden transition-all duration-300 ease-in-out">
+                <!-- Camera Button -->
+                <button onclick="document.getElementById('cameraAttachment').click()" class="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-black/5 dark:hover:bg-white/5 focus:outline-none" style="color: var(--text-sub);" title="Camera">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z"></path>
+                  </svg>
+                </button>
+                
+                <!-- Voice Button -->
+                <button onclick="document.getElementById('voiceAttachment').click()" class="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-black/5 dark:hover:bg-white/5 focus:outline-none" style="color: var(--text-sub);" title="Voice">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"></path>
+                  </svg>
+                </button>
+                
+                <!-- File Button -->
+                <button onclick="document.getElementById('fileAttachment').click()" class="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-black/5 dark:hover:bg-white/5 focus:outline-none" style="color: var(--text-sub);" title="File">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                  </svg>
+                </button>
+
+                <!-- Link Button -->
+                <button onclick="toggleLinkInput()" class="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-black/5 dark:hover:bg-white/5 focus:outline-none" style="color: var(--text-sub);" title="Web Link">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Submit/Cancel Actions -->
+            <div class="flex items-center space-x-2">
+              <button onclick="cancelRefine()" id="btnCancelRefine" class="hidden px-4 py-2 rounded-xl text-xs font-medium tracking-widest focus:outline-none border transition-all duration-300" style="border-color: var(--border-color); color: var(--text-sub); background-color: var(--input-bg);">
+                <span id="btnCancelText">Cancel</span>
+              </button>
+              <button onclick="submitNoise()" id="btnSubmit" class="px-5 py-2 rounded-xl ergonomic-btn font-medium text-xs tracking-widest focus:outline-none flex justify-center items-center">
+                <span id="btnSubmitText">Release</span>
+              </button>
+            </div>
+          </div>
         </div>
 
-        <div class="flex items-center space-x-3">
-          <button onclick="submitNoise()" id="btnSubmit" class="flex-grow py-4 rounded-xl ergonomic-btn font-medium text-sm tracking-widest focus:outline-none flex justify-center items-center">
-            <span id="btnSubmitText">Release (Begin Self-Organization)</span>
-          </button>
-          <button onclick="cancelRefine()" id="btnCancelRefine" class="hidden py-4 px-6 rounded-xl font-medium text-sm tracking-widest focus:outline-none border transition-all duration-300" style="border-color: var(--border-color); color: var(--text-sub); background-color: var(--input-bg);">
-            <span id="btnCancelText">Cancel</span>
-          </button>
-        </div>
+        <!-- Hidden File Inputs -->
+        <input type="file" id="cameraAttachment" accept="image/*" capture="environment" class="hidden" onchange="handleFileSelect(this)">
+        <input type="file" id="voiceAttachment" accept="audio/*" capture="microphone" class="hidden" onchange="handleFileSelect(this)">
+        <input type="file" id="fileAttachment" accept="image/*,application/pdf" class="hidden" onchange="handleFileSelect(this)">
 
         <!-- Loader -->
         <div id="loader" class="hidden text-center py-4">
@@ -587,11 +597,11 @@
         en: {
           subtitle: "Receiving undifferentiated thought noise, weaving relationships.",
           placeholder: "e.g., Strength calculation of stair treads. Reverse limitation approach integrating wood grain 'warp' into structural strength. Hypothesis of controlling friction and airflow with irregular grooves (DMR)...",
-          btnSubmit: "Release (Begin Self-Organization)",
+          btnSubmit: "Release",
           loader: "Quietly weaving relationships...",
           resultTitle: "Cognitive Path & Emergent Results",
           footer: "※ Memory as a convention of relationship. Dynamic equilibrium in perpetual flux.",
-          langToggle: "日本語",
+          langToggle: "Ja",
           themeDark: "DARK MODE",
           themeLight: "LIGHT MODE",
           uploadText: "Attach Photo / Sketch / PDF / Voice",
@@ -616,14 +626,14 @@
         ja: {
           subtitle: "未分化 of 思考ノイズを受け止め、関係性を紡ぐ",
           placeholder: "例：階段の段板強度計算。木目の『反り』を構造強度に組み込む逆限定アプローチ。不規則な溝（DMR）による摩擦と気流制御の仮説...",
-          btnSubmit: "放流（自己組織化の開始）",
+          btnSubmit: "リリース",
           loader: "関係性を静かに紡いでいます...",
           resultTitle: "思考の軌道と創発結果",
           footer: "※関係性の規約としての記憶。絶え間なく移り変わる動的平衡。",
-          langToggle: "ENGLISH",
+          langToggle: "En",
           themeDark: "ダークモード",
           themeLight: "ライトモード",
-          uploadText: "端末のカメラ・マイクに直結 / ファイルの放流",
+          uploadText: "端末のカメラ・マイクに直結 / ファイルのアップロード",
           linkPlaceholder: "関連Webリンク (URL)",
           btnRefine: "推敲",
           btnExport: "AIへ送る",
@@ -633,7 +643,7 @@
           btnNo: "いいえ",
           btnCancel: "取消",
           btnUpdate: "推敲（記憶の更新）",
-          weaving: "放流中...",
+          weaving: "リリース中...",
           updating: "推敲中...",
           forgotten: "記憶の海へ還元されました",
           refinedSuccess: "記憶が美しく推敲されました",
@@ -647,6 +657,34 @@
       let currentLang = 'en'; // English is default
       let activeEngramId = null;
       let isRefiningMode = false;
+      
+      let isDrawerExpanded = false;
+      function toggleDrawer() {
+        isDrawerExpanded = !isDrawerExpanded;
+        const drawer = document.getElementById('attachmentDrawer');
+        const icon = document.getElementById('drawerToggleIcon');
+        if (isDrawerExpanded) {
+          drawer.classList.remove('opacity-0', 'max-w-0');
+          drawer.classList.add('opacity-100', 'max-w-xs');
+          icon.style.transform = "rotate(45deg)";
+        } else {
+          drawer.classList.remove('opacity-100', 'max-w-xs');
+          drawer.classList.add('opacity-0', 'max-w-0');
+          icon.style.transform = "rotate(0deg)";
+        }
+      }
+
+      let isLinkInputVisible = false;
+      function toggleLinkInput() {
+        isLinkInputVisible = !isLinkInputVisible;
+        const wrapper = document.getElementById('linkInputWrapper');
+        if (isLinkInputVisible) {
+          wrapper.classList.remove('hidden');
+          document.getElementById('linkInput').focus();
+        } else {
+          wrapper.classList.add('hidden');
+        }
+      }
 
       function toggleLanguage() {
         currentLang = currentLang === 'en' ? 'ja' : 'en';
@@ -1134,7 +1172,7 @@
         }
         
         // Temporary success state for button
-        btnSubmitText.innerText = currentLang === 'en' ? "Released Successfully" : "記憶の海へ放流完了";
+        btnSubmitText.innerText = currentLang === 'en' ? "Released Successfully" : "リリース完了";
         btnSubmit.style.transition = "all 0.3s ease";
         btnSubmit.style.background = "linear-gradient(135deg, #10b981 0%, #059669 100%)"; // Elegant Emerald green
         btnSubmit.style.color = "#ffffff";
@@ -1435,6 +1473,24 @@
 
         draw() {
           this.ctx.clearRect(0, 0, this.width, this.height);
+          
+          if (this.nodes.length === 0) {
+            // Draw premium quiet placeholder text when empty
+            this.ctx.save();
+            this.ctx.fillStyle = document.body.classList.contains('dark-theme') ? "rgba(255, 255, 255, 0.25)" : "rgba(0, 0, 0, 0.25)";
+            this.ctx.font = "italic 300 11px 'Playfair Display', 'Noto Serif JP', serif";
+            this.ctx.textAlign = "center";
+            this.ctx.textBaseline = "middle";
+            
+            const isJa = currentLang === 'ja';
+            const placeholderText = isJa 
+              ? "思考ノイズをリリースすると、ここに記憶共鳴空間が紡がれます。"
+              : "No memories yet. Release thought noise to weave semantic space.";
+            
+            this.ctx.fillText(placeholderText, this.width / 2, this.height / 2);
+            this.ctx.restore();
+            return;
+          }
           
           const centerX = this.width / 2;
           const centerY = this.height / 2;
