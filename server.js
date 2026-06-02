@@ -176,15 +176,52 @@ Please explain the context or resonant meaning (reason of connection) between th
 
 const https = require('https');
 const http = require('http');
+const dns = require('dns');
 
 // Helper to fetch remote web page title and text preview
 function fetchUrlTitleAndText(targetUrl) {
   return new Promise((resolve) => {
     try {
       const parsedUrl = new URL(targetUrl);
+
+      // 🛡️ SSRF Protection: Restrict protocols
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        return resolve({ title: "Security Block", content: "Protocol not allowed" });
+      }
+
       const client = parsedUrl.protocol === 'https:' ? https : http;
       
-      const req = client.get(targetUrl, { timeout: 3000 }, (res) => {
+      const options = {
+        timeout: 3000,
+        // 🛡️ SSRF Protection: Block internal IPs on DNS resolution
+        lookup: (hostname, dnsOptions, callback) => {
+          dns.lookup(hostname, dnsOptions, (err, address, family) => {
+            if (err) return callback(err);
+
+            let addresses = Array.isArray(address) ? address.map(a => a.address || a) : [address];
+
+            if (addresses.length === 0) return callback(new Error('No IP found'));
+
+            for (let addressStr of addresses) {
+              if (
+                addressStr === '127.0.0.1' ||
+                addressStr === '::1' ||
+                addressStr === '0.0.0.0' ||
+                addressStr === '169.254.169.254' ||
+                addressStr.startsWith('192.168.') ||
+                addressStr.startsWith('10.') ||
+                /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(addressStr)
+              ) {
+                return callback(new Error('Security Block: Internal IP accessed'));
+              }
+            }
+
+            callback(null, address, family);
+          });
+        }
+      };
+
+      const req = client.get(targetUrl, options, (res) => {
         let data = '';
         res.on('data', chunk => { data += chunk; });
         res.on('end', () => {
