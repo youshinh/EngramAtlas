@@ -177,14 +177,52 @@ Please explain the context or resonant meaning (reason of connection) between th
 const https = require('https');
 const http = require('http');
 
-// Helper to fetch remote web page title and text preview
-function fetchUrlTitleAndText(targetUrl) {
+// Helper to fetch remote web page title and text preview (supporting User-Agent & redirect chasing)
+function fetchUrlTitleAndText(targetUrl, redirectCount = 0) {
   return new Promise((resolve) => {
+    if (redirectCount > 5) {
+      console.warn(`↪️ [Redirect Limit Exceeded] Max redirect limit of 5 hit for: ${targetUrl}`);
+      return resolve({ title: "Redirect Limit Exceeded", content: "Too many redirects" });
+    }
+
     try {
       const parsedUrl = new URL(targetUrl);
       const client = parsedUrl.protocol === 'https:' ? https : http;
       
-      const req = client.get(targetUrl, { timeout: 3000 }, (res) => {
+      const options = {
+        hostname: parsedUrl.hostname,
+        path: parsedUrl.pathname + parsedUrl.search,
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'ja,en-US;q=0.7,en;q=0.3'
+        },
+        timeout: 5000
+      };
+      
+      const req = client.request(options, (res) => {
+        // Handle HTTP Redirects (301, 302, 303, 307, 308)
+        if ([301, 302, 303, 307, 308].includes(res.statusCode)) {
+          let location = res.headers.location;
+          if (location) {
+            if (!location.startsWith('http://') && !location.startsWith('https://')) {
+              location = new URL(location, targetUrl).href;
+            }
+            console.log(`↪️ [HTTP Redirect]: ${targetUrl} -> ${location} (${res.statusCode})`);
+            return resolve(fetchUrlTitleAndText(location, redirectCount + 1));
+          }
+        }
+        
+        // Block unsuccessful HTTP status codes
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          console.warn(`⚠️ [Fetch URL Rejected]: ${targetUrl} returned status ${res.statusCode}`);
+          return resolve({ 
+            title: parsedUrl.hostname, 
+            content: `HTTP Request failed with status code ${res.statusCode}` 
+          });
+        }
+        
         let data = '';
         res.on('data', chunk => { data += chunk; });
         res.on('end', () => {
@@ -195,16 +233,24 @@ function fetchUrlTitleAndText(targetUrl) {
             .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
             .replace(/<[^>]+>/g, ' ')
             .replace(/\s+/g, ' ')
-            .substring(0, 1500)
+            .substring(0, 2000)
             .trim();
           resolve({ title, content: cleanText || "No content extracted" });
         });
       });
-      req.on('error', () => resolve({ title: parsedUrl.hostname, content: "Request failed" }));
+      
+      req.on('error', (err) => {
+        console.warn(`⚠️ [Fetch URL Network Error]: ${targetUrl} - ${err.message}`);
+        resolve({ title: parsedUrl.hostname, content: `Request failed: ${err.message}` });
+      });
+      
       req.on('timeout', () => {
         req.destroy();
+        console.warn(`⏳ [Fetch URL Timeout]: ${targetUrl}`);
         resolve({ title: parsedUrl.hostname, content: "Request timeout" });
       });
+      
+      req.end();
     } catch (e) {
       resolve({ title: "Invalid URL", content: "Parsing failed" });
     }
@@ -214,18 +260,39 @@ function fetchUrlTitleAndText(targetUrl) {
 // Generate poetry Summary of remote URL using Gemini Flash
 async function generateUrlSummaryNoise(linkUrl, currentLang, apiKey) {
   const webData = await fetchUrlTitleAndText(linkUrl);
+  console.log(`🌐 [Web Scraping Audit]: Scraped "${webData.title}" (Content: ${webData.content.substring(0, 150)}...)`);
   
   const prompt = currentLang === 'ja'
-    ? `以下のWebページの情報を解釈し、背後にあるコンセプト、思考、あるいは技術的・思想的なエッセンスを日本語1〜2段落の「思考ノイズ（未分化の思考断片）」として翻訳・再構成してください。余計な挨拶や前置きは完全に省き、要約された思考テキストのみを返してください。
-
+    ? `以下のWebページの情報を解釈し、背後にあるコンセプト、思考、あるいは技術的・思想的なエッセンスを日本語1〜2段落の「思考ノイズ（未分化の思考断片）」として翻訳・再構成してください。余計な挨拶や前置きは完全に省き、要要約された思考テキストのみを返してください。
+ 
 【WebページのURL】: ${linkUrl}
 【タイトル】: ${webData.title}
 【本文抜粋】: ${webData.content}`
     : `Please interpret the following Web page information and translate/reconstruct its core concept, underlying thoughts, or technical/philosophical essence into 1 or 2 elegant paragraphs of "thought noise" in English. Do not include any greeting or conversational filler. Return ONLY the translated thought text.
-
+ 
 [URL]: ${linkUrl}
 [Title]: ${webData.title}
 [Content Extract]: ${webData.content}`;
+
+  if (apiKey && apiKey !== 'your_gemini_api_key_here') {
+    try {
+      const ai = new GoogleGenAI({ apiKey });
+      const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+      const response = await ai.models.generateContent({
+        model: model,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: { systemInstruction: systemInstruction, temperature: 0.7 }
+      });
+      return response.text.trim();
+    } catch (err) {
+      console.warn("⚠️ [Gemini URL Summarization API Error] Fallback default used:", err.message);
+    }
+  }
+
+  return currentLang === 'ja'
+    ? `[Web参照: ${webData.title}] ${linkUrl} の中に流れる情報代謝と関係性の潮流を観測しました。この界面の奥に潜む知識のエッセンスが、私たちの記憶の動的平衡と共鳴しています。`
+    : `[Web Reference: ${webData.title}] Observed the flow of information metabolism and relation streams within ${linkUrl}. The essence of knowledge behind this interface resonates with our dynamic memory equilibrium.`;
+}`;
 
   if (apiKey && apiKey !== 'your_gemini_api_key_here') {
     try {

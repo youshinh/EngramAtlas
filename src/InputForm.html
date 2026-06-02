@@ -359,21 +359,8 @@
       }
     </style>
   </head>
-  <body class="flex items-center justify-center p-6 relative">
+  <body class="flex items-center justify-center p-3 sm:p-6 relative">
     
-    <!-- Language & Theme Controllers in top-right -->
-    <div class="absolute top-6 right-6 flex items-center space-x-3" style="z-index: 10;">
-      <!-- Language Selector Button -->
-      <button onclick="toggleLanguage()" class="control-pill focus:outline-none">
-        <span id="langToggleText">日本語</span>
-      </button>
-      
-      <!-- Theme Switch Button (Pure SVG Icon for Ergonomic Minimalism) -->
-      <button onclick="toggleTheme()" class="control-pill focus:outline-none" id="btnThemeToggle" style="width: 2rem; height: 2rem; padding: 0; border-radius: 9999px;">
-        <span id="themeToggleIcon" class="flex items-center justify-center"></span>
-      </button>
-    </div>
-
     <!-- Equilibrium Sphere (Visual Metaphor) -->
     <div class="equilibrium-sphere">
       <div class="text-center opacity-10 select-none">
@@ -383,14 +370,29 @@
     </div>
 
     <!-- Main Container -->
-    <div class="w-full max-w-lg glass-container p-8 rounded-3xl relative z-10">
+    <div class="w-full max-w-lg glass-container p-4 sm:p-8 rounded-2xl sm:rounded-3xl relative z-10">
       
-      <!-- Header -->
-      <div class="text-center mb-8">
-        <h1 class="text-3xl font-light serif-header mb-2 tracking-widest">EngramAtlas</h1>
-        <p id="uiSubtitle" class="text-xs tracking-wider" style="color: var(--text-sub);">
-          Receiving undifferentiated thought noise, weaving relationships.
-        </p>
+      <!-- Header & Controllers responsive container -->
+      <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-6 sm:mb-8 pr-0 sm:pr-28 relative">
+        <div class="text-center sm:text-left">
+          <h1 class="text-2xl sm:text-3xl font-light serif-header mb-1 sm:mb-2 tracking-widest">EngramAtlas</h1>
+          <p id="uiSubtitle" class="text-xxs sm:text-xs tracking-wider" style="color: var(--text-sub);">
+            Receiving undifferentiated thought noise, weaving relationships.
+          </p>
+        </div>
+        
+        <!-- Language & Theme Controllers (Mobile inline, Desktop top-right) -->
+        <div class="flex items-center justify-center space-x-2 mt-3 sm:mt-0 sm:absolute sm:top-0 sm:right-0" style="z-index: 20;">
+          <!-- Language Selector Button -->
+          <button onclick="toggleLanguage()" class="control-pill focus:outline-none">
+            <span id="langToggleText">日本語</span>
+          </button>
+          
+          <!-- Theme Switch Button (Pure SVG Icon for Ergonomic Minimalism) -->
+          <button onclick="toggleTheme()" class="control-pill focus:outline-none" id="btnThemeToggle" style="width: 2rem; height: 2rem; padding: 0; border-radius: 9999px;">
+            <span id="themeToggleIcon" class="flex items-center justify-center"></span>
+          </button>
+        </div>
       </div>
 
       <!-- Input Form -->
