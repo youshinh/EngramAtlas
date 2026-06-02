@@ -10,24 +10,19 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '20mb' }));
 
-// In-memory mock database for fallback
+// In-memory mock database for fallback (used when MONGODB_URI is not set)
 let mockEngrams = [];
-let isMongoActive = false;
 
-// Attempt to connect to MongoDB on startup to check status
+// Helper: returns true when MongoDB Atlas URI is configured
 const mongoUri = process.env.MONGODB_URI;
-if (mongoUri && mongoUri !== 'mongodb_connection_string_here') {
-  const startupDbClient = new MongoClient(mongoUri);
-  startupDbClient.connect()
-    .then(async () => {
-      isMongoActive = true;
-      console.log("🟢 [MongoDB Atlas] Connection established on startup. isMongoActive set to true.");
-      await startupDbClient.close();
-    })
-    .catch(err => {
-      console.warn("⚠️ [MongoDB Atlas] Startup connection failed, using mock fallback:", err.message);
-      isMongoActive = false;
-    });
+function hasMongoUri() {
+  return !!(mongoUri && mongoUri !== 'mongodb_connection_string_here');
+}
+
+if (hasMongoUri()) {
+  console.log("🟢 [MongoDB Atlas] URI detected. All requests will use MongoDB Atlas.");
+} else {
+  console.warn("⚠️ [MongoDB Atlas] No URI configured. Using in-memory mock fallback.");
 }
 
 
@@ -515,7 +510,7 @@ app.post('/api/sendNoise', async (req, res) => {
     let useMongo = false;
     let targetId = null;
 
-    if (isMongoActive && mongoUri && mongoUri !== 'mongodb_connection_string_here') {
+    if (hasMongoUri()) {
       const dbClient = new MongoClient(mongoUri);
       await dbClient.connect();
       try {
@@ -754,7 +749,7 @@ app.post('/api/sendNoise', async (req, res) => {
         dbResultId = insertRes.insertedId.toString();
         newEngram._id = insertRes.insertedId;
         useMongo = true;
-        isMongoActive = true;
+        // isMongoActive removed — MongoDB usage is determined by MONGODB_URI presence
 
         // Find all past engrams to perform vector search locally
         const pastEngrams = await engramsCollection.find({ 
@@ -1091,7 +1086,7 @@ app.get('/api/getEngram', async (req, res) => {
   const mongoUri = process.env.MONGODB_URI;
 
   try {
-    if (isMongoActive && mongoUri && mongoUri !== 'mongodb_connection_string_here') {
+    if (hasMongoUri()) {
       const dbClient = new MongoClient(mongoUri);
       await dbClient.connect();
       try {
@@ -1180,7 +1175,7 @@ app.post('/api/forgetEngram', async (req, res) => {
   console.log(`🧹 [Forget Request] ID: ${db_id}`);
 
   try {
-    if (isMongoActive && mongoUri && mongoUri !== 'mongodb_connection_string_here') {
+    if (hasMongoUri()) {
       const dbClient = new MongoClient(mongoUri);
       await dbClient.connect();
       try {
@@ -1270,7 +1265,7 @@ app.post('/api/updateEngram', async (req, res) => {
   const embedding = await getEmbedding(processedInputText, apiKey);
 
   try {
-    if (isMongoActive && mongoUri && mongoUri !== 'mongodb_connection_string_here') {
+    if (hasMongoUri()) {
       const dbClient = new MongoClient(mongoUri);
       await dbClient.connect();
       try {
@@ -1514,7 +1509,7 @@ app.get('/api/search', async (req, res) => {
   try {
     const embedding = await getEmbedding(query, apiKey);
 
-    if (isMongoActive && mongoUri && mongoUri !== 'mongodb_connection_string_here') {
+    if (hasMongoUri()) {
       const dbClient = new MongoClient(mongoUri);
       await dbClient.connect();
       try {
@@ -1589,11 +1584,42 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
+// -------------------------------------------------------
+// 🗑️ DB Reset Endpoint — clears all engrams from MongoDB
+// -------------------------------------------------------
+app.delete('/api/resetDatabase', async (req, res) => {
+  console.log('🗑️ [Reset Database] Request received.');
+  try {
+    if (hasMongoUri()) {
+      const dbClient = new MongoClient(mongoUri);
+      await dbClient.connect();
+      try {
+        const db = dbClient.db('engram_atlas');
+        const engramsCollection = db.collection('engrams');
+        const result = await engramsCollection.deleteMany({});
+        console.log(`🗑️ [Reset Database] Deleted ${result.deletedCount} engrams from MongoDB Atlas.`);
+        return res.json({ success: true, mode: 'mongodb', deletedCount: result.deletedCount });
+      } finally {
+        await dbClient.close();
+      }
+    } else {
+      const count = mockEngrams.length;
+      mockEngrams = [];
+      console.log(`🗑️ [Reset Database] Cleared ${count} engrams from mock memory.`);
+      return res.json({ success: true, mode: 'mock', deletedCount: count });
+    }
+  } catch (err) {
+    console.error('❌ [Reset Database Error]:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/getAllEngrams', async (req, res) => {
+
   const mongoUri = process.env.MONGODB_URI;
 
   try {
-    if (isMongoActive && mongoUri && mongoUri !== 'mongodb_connection_string_here') {
+    if (hasMongoUri()) {
       const dbClient = new MongoClient(mongoUri);
       await dbClient.connect();
       try {
