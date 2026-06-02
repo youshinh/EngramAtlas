@@ -135,15 +135,18 @@ async function getEmbedding(text, apiKey) {
 
 // Ask Gemini for connection reasoning
 async function generateReasonOfConnection(textA, textB, currentLang, apiKey) {
+  const cleanA = textA || "";
+  const cleanB = textB || "";
+
   const prompt = currentLang === 'ja'
     ? `以下の2つの思考ノイズは概念的類似性が高く、深いレベルで関係しています。
-【思考A】: "${textA}"
-【思考B】: "${textB}"
+【思考A】: "${cleanA}"
+【思考B】: "${cleanB}"
 
 この2つの思考が繋がる背景にある文脈や、共鳴する意味（関係性の理由）を、日本語1〜2文で知的かつ簡潔に説明してください。余計な挨拶や前置きは省いて理由のみを返してください。`
     : `The following two thought noises have high conceptual similarity and are connected on a deep level.
-[Thought A]: "${textA}"
-[Thought B]: "${textB}"
+[Thought A]: "${cleanA}"
+[Thought B]: "${cleanB}"
 
 Please explain the context or resonant meaning (reason of connection) between these two thoughts in 1 or 2 elegant and concise sentences in English. Do not include any greeting or conversational filler.`;
 
@@ -162,7 +165,7 @@ Please explain the context or resonant meaning (reason of connection) between th
     }
   }
 
-  const isPoetry = textA.includes('道') || textA.includes('流') || textA.includes('いのち') || textA.includes('静');
+  const isPoetry = cleanA.includes('道') || cleanA.includes('流') || cleanA.includes('いのち') || cleanA.includes('静');
   if (isPoetry) {
     return currentLang === 'ja'
       ? `自己の歩む孤独な道の選択と、相反する静的・動的境界の調和が「自己同一と動的平衡」の精神において美しく共鳴しています。`
@@ -176,8 +179,9 @@ Please explain the context or resonant meaning (reason of connection) between th
 
 const https = require('https');
 const http = require('http');
+const dns = require('dns');
 
-// Helper to fetch remote web page title and text preview (supporting User-Agent & redirect chasing)
+// Helper to fetch remote web page title and text preview (supporting User-Agent, redirects, & SSRF protection)
 function fetchUrlTitleAndText(targetUrl, redirectCount = 0) {
   return new Promise((resolve) => {
     if (redirectCount > 5) {
@@ -187,21 +191,48 @@ function fetchUrlTitleAndText(targetUrl, redirectCount = 0) {
 
     try {
       const parsedUrl = new URL(targetUrl);
-      const client = parsedUrl.protocol === 'https:' ? https : http;
-      
+
+      // 🛡️ SSRF Protection: Restrict protocols
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        return resolve({ title: "Security Block", content: "Protocol not allowed" });
+      }
+
       const options = {
-        hostname: parsedUrl.hostname,
-        path: parsedUrl.pathname + parsedUrl.search,
-        method: 'GET',
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
           'Accept-Language': 'ja,en-US;q=0.7,en;q=0.3'
         },
-        timeout: 5000
+        timeout: 2500,
+        // 🛡️ SSRF Protection: Block internal IPs on DNS resolution
+        lookup: (hostname, dnsOptions, callback) => {
+          dns.lookup(hostname, dnsOptions, (err, address, family) => {
+            if (err) return callback(err);
+
+            let addresses = Array.isArray(address) ? address.map(a => a.address || a) : [address];
+
+            if (addresses.length === 0) return callback(new Error('No IP found'));
+
+            for (let addressStr of addresses) {
+              if (
+                addressStr === '127.0.0.1' ||
+                addressStr === '::1' ||
+                addressStr === '0.0.0.0' ||
+                addressStr === '169.254.169.254' ||
+                addressStr.startsWith('192.168.') ||
+                addressStr.startsWith('10.') ||
+                /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(addressStr)
+              ) {
+                return callback(new Error('Security Block: Internal IP accessed'));
+              }
+            }
+
+            callback(null, address, family);
+          });
+        }
       };
       
-      const req = client.request(options, (res) => {
+      const req = client.get(targetUrl, options, (res) => {
         // Handle HTTP Redirects (301, 302, 303, 307, 308)
         if ([301, 302, 303, 307, 308].includes(res.statusCode)) {
           let location = res.headers.location;
@@ -222,7 +253,6 @@ function fetchUrlTitleAndText(targetUrl, redirectCount = 0) {
             content: `HTTP Request failed with status code ${res.statusCode}` 
           });
         }
-        
         let data = '';
         res.on('data', chunk => { data += chunk; });
         res.on('end', () => {
@@ -923,20 +953,33 @@ app.get('/api/getEngram', async (req, res) => {
         // Resolving to_engram_content for related_links to assist client-side AI exports
         if (engram.related_links && engram.related_links.length > 0) {
           const resolvedLinks = [];
-          for (const link of engram.related_links) {
+
+          // ⚡ Bolt: Fix N+1 query problem by batching fetching related contents
+          const targetIds = engram.related_links.map(link => {
             try {
-              const targetId = new ObjectId(link.to_engram_id);
-              const targetDoc = await engramsCollection.findOne({ _id: targetId }, { projection: { content: 1 } });
-              resolvedLinks.push({
-                ...link,
-                to_engram_content: targetDoc ? targetDoc.content : ""
-              });
+              return new ObjectId(link.to_engram_id);
             } catch (e) {
-              resolvedLinks.push({
-                ...link,
-                to_engram_content: ""
-              });
+              return null;
             }
+          }).filter(id => id !== null);
+
+          let targetDocsMap = {};
+          if (targetIds.length > 0) {
+            const targetDocs = await engramsCollection.find(
+              { _id: { $in: targetIds } },
+              { projection: { content: 1 } }
+            ).toArray();
+
+            targetDocs.forEach(doc => {
+              targetDocsMap[doc._id.toString()] = doc.content;
+            });
+          }
+
+          for (const link of engram.related_links) {
+            resolvedLinks.push({
+              ...link,
+              to_engram_content: targetDocsMap[link.to_engram_id] || ""
+            });
           }
           engram.related_links = resolvedLinks;
         }
@@ -997,7 +1040,7 @@ app.post('/api/forgetEngram', async (req, res) => {
         // 2. 参照のちぎり取り（他のすべての related_links から db_id への参照を pull する）
         const updateRes = await engramsCollection.updateMany(
           {},
-          { $pull: { related_links: { to_engram_id: db_id } } }
+          { $pull: { related_links: { to_engram_id: db_id.toString() } } }
         );
 
         console.log(`🗑️ [MongoDB] Deleted engram. Success: ${deleteRes.deletedCount > 0}. Cleared references: ${updateRes.modifiedCount}`);
@@ -1084,7 +1127,7 @@ app.post('/api/updateEngram', async (req, res) => {
         // a. 相手ノードからの古い参照の完全クリーンアップ（この db_id への参照を pull する）
         await engramsCollection.updateMany(
           {},
-          { $pull: { related_links: { to_engram_id: db_id } } }
+          { $pull: { related_links: { to_engram_id: db_id.toString() } } }
         );
 
         // b. 自身の更新（related_links を一旦空にする）
@@ -1333,7 +1376,7 @@ app.get('/api/getAllEngrams', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 ===================================================`);
   console.log(`🧬 EngramAtlas Local Development Server`);
   console.log(`🔗 URL: http://localhost:3000/`);
