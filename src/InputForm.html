@@ -2062,17 +2062,18 @@
               <div class="related-node-card group cursor-pointer rounded-xl px-3 py-2 transition-all duration-200 border"
                    style="border-color: var(--border-color); background: var(--input-bg);"
                    onclick="showEngramDetail('${fullId}')"
-                   onmouseenter="this.style.borderColor='rgba(139,92,246,0.5)'; this.style.background='rgba(139,92,246,0.05)'"
+                   onmouseenter="this.style.borderColor='var(--text-sub)'; this.style.background='rgba(128,128,128,0.07)'"
                    onmouseleave="this.style.borderColor='var(--border-color)'; this.style.background='var(--input-bg)'">
                 <div class="flex items-center justify-between mb-1">
                   <span class="text-xxs tracking-widest font-mono opacity-50" style="color: var(--text-sub);">${shortId}…</span>
-                  <span class="text-xxs px-2 py-0.5 rounded-full" style="background: rgba(139,92,246,0.15); color: #a78bfa; font-family: monospace;">≈ ${similarity}</span>
+                  <span class="text-xxs px-2 py-0.5 rounded-full" style="background: rgba(128,128,128,0.12); color: var(--text-sub); font-family: monospace;">≈ ${similarity}</span>
                 </div>
                 <p class="text-xxs leading-relaxed opacity-70 group-hover:opacity-100 transition-opacity duration-200" style="color: var(--text-main);">${context}</p>
                 <p class="text-xxs mt-1 opacity-30 tracking-wide" style="color: var(--text-sub); font-family: serif;">
                   ${currentLang === 'ja' ? 'クリックで詳細を表示 →' : 'Click to view details →'}
                 </p>
               </div>`;
+
           });
 
           html += `</div></div>`;
