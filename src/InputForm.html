@@ -401,7 +401,7 @@
         <!-- Unified Premium Chat Input Box -->
         <div class="w-full rounded-2xl border flex flex-col focus-within:ring-1 focus-within:ring-current overflow-hidden transition-all duration-300" style="background-color: var(--input-bg); border-color: var(--border-color);">
           <!-- Textarea -->
-          <textarea id="noiseInput" class="w-full h-32 p-4 bg-transparent border-none focus:outline-none focus:ring-0 text-sm leading-relaxed placeholder-gray-400" placeholder="e.g., Strength calculation of stair treads. Reverse limitation approach integrating wood grain 'warp' into structural strength..."></textarea>
+          <textarea id="noiseInput" class="w-full h-32 p-4 bg-transparent border-none focus:outline-none focus:ring-0 text-sm leading-relaxed placeholder-gray-400" placeholder="e.g., From the perspective of life science, the cell membrane that separates the inside and outside of a cell is not merely a static boundary, but functions as a dynamic 'in-between' where substances and information are continuously exchanged."></textarea>
           
           <!-- Web Link Input Box (Expandable) -->
           <div id="linkInputWrapper" class="hidden px-4 pb-3">
@@ -572,7 +572,7 @@
 
           <!-- Elegant Interactive Canvas container -->
           <div class="relative w-full rounded-2xl overflow-hidden border" style="border-color: var(--border-color); background-color: var(--input-bg);">
-            <canvas id="memoryMapCanvas" width="448" height="280" class="w-full h-70 block cursor-grab active:cursor-grabbing"></canvas>
+            <canvas id="memoryMapCanvas" width="448" height="480" class="w-full block cursor-grab active:cursor-grabbing" style="min-height: 300px;"></canvas>
             
             <!-- Elegant alignment tools inside canvas -->
             <div class="absolute bottom-3 right-3 flex space-x-1.5 opacity-80 hover:opacity-100 transition-opacity duration-300">
@@ -608,7 +608,7 @@
       const translations = {
         en: {
           subtitle: "Receiving undifferentiated thought noise, weaving relationships.",
-          placeholder: "e.g., Strength calculation of stair treads. Reverse limitation approach integrating wood grain 'warp' into structural strength. Hypothesis of controlling friction and airflow with irregular grooves (DMR)...",
+          placeholder: "e.g., From the perspective of life science, the cell membrane that separates the inside and outside of a cell is not merely a static boundary, but functions as a dynamic 'in-between' where substances and information are continuously exchanged.",
           btnSubmit: "Release",
           loader: "Quietly weaving relationships...",
           resultTitle: "Cognitive Path & Emergent Results",
@@ -638,7 +638,7 @@
         },
         ja: {
           subtitle: "未分化 of 思考ノイズを受け止め、関係性を紡ぐ",
-          placeholder: "例：階段の段板強度計算。木目の『反り』を構造強度に組み込む逆限定アプローチ。不規則な溝（DMR）による摩擦と気流制御の仮説...",
+          placeholder: "例：生命科学の視点から見ると、細胞の内と外を分ける細胞膜は単なる静的な輪郭線ではなく、絶え間なく物質や情報がやり取りされる動的な「あいだ」として機能しています。",
           btnSubmit: "リリース",
           loader: "関係性を静かに紡いています...",
           resultTitle: "思考の軌道と創発結果",
@@ -1983,7 +1983,6 @@
           window.addEventListener('touchend', onUp);
         }
 
-        // Fetch detailed engram path and display in form container in-sync!
         displaySelectedEngram(node) {
           document.getElementById('loader').classList.remove('hidden');
           document.getElementById('resultContainer').classList.add('hidden');
@@ -1992,21 +1991,11 @@
             .then(res => res.json())
             .then(data => {
               document.getElementById('loader').classList.add('hidden');
+              window.__currentEngramData__ = data;
+              window.__prevEngramData__ = null;
               
               const contentContainer = document.getElementById('resultContent');
-              
-              // Build dynamic explanation preview
-              let mdText = `### ${currentLang === 'ja' ? '記憶の共鳴詳細' : 'Resonant Memory Node Details'}\n\n`;
-              mdText += `${data.content}\n\n`;
-              
-              if (data.related_links && data.related_links.length > 0) {
-                mdText += `\n---\n#### ${currentLang === 'ja' ? '紡がれている関係性' : 'Woven Relationships'}\n`;
-                data.related_links.forEach((link, idx) => {
-                  mdText += `* **[Node]** similarity: \`${link.strength.toFixed(2)}\` | ID: \`${link.to_engram_id.substring(0,8)}...\`\n  * *Context*: ${link.reason_of_connection}\n`;
-                });
-              }
-              
-              contentContainer.innerHTML = marked.parse(mdText);
+              renderEngramDetail(data, contentContainer, null);
 
               // Render metadata signature quietly
               const metaContainer = document.getElementById('resultMetadata');
@@ -2018,6 +2007,7 @@
                 metaContainer.classList.add('hidden');
               }
               
+              // Show result panel — no scrolling (stay on canvas)
               document.getElementById('resultContainer').classList.remove('hidden');
             })
             .catch(err => {
@@ -2034,6 +2024,87 @@
           };
           requestAnimationFrame(loop);
         }
+      }
+
+      // ────────────────────────────────────────────────────────────────
+      // Global functions (outside class) — accessible from onclick HTML
+      // ────────────────────────────────────────────────────────────────
+      function renderEngramDetail(data, container, prevData) {
+        const label = currentLang === 'ja' ? '記憶の共鳴詳細' : 'Resonant Memory Node Details';
+        const relLabel = currentLang === 'ja' ? '紡がれている関係性' : 'Woven Relationships';
+        const backLabel = currentLang === 'ja' ? '← 前の記憶に戻る' : '← Back';
+        const noRelLabel = currentLang === 'ja' ? '関係する記憶ノードがありません' : 'No related memory nodes.';
+
+        let html = '';
+
+        if (prevData) {
+          html += `<button onclick="renderEngramDetail(window.__prevEngramData__, document.getElementById('resultContent'), null)"
+            class="mb-3 text-xxs tracking-widest opacity-60 hover:opacity-100 transition-all duration-200 flex items-center gap-1 focus:outline-none"
+            style="color: var(--text-sub); border: none; background: none; padding: 0; cursor: pointer; font-family: 'Playfair Display', 'Noto Serif JP', serif;">
+            ${backLabel}
+          </button>`;
+        }
+
+        html += `<h3 class="text-xs font-semibold tracking-wider mb-3" style="color: var(--text-main); font-family: 'Playfair Display', 'Noto Serif JP', serif;">${label}</h3>`;
+        html += `<div class="markdown-content text-xs leading-relaxed tracking-wide mb-4" style="color: var(--text-main);">${marked.parse(data.content || '')}</div>`;
+
+        if (data.related_links && data.related_links.length > 0) {
+          html += `<div class="border-t pt-3 mt-2" style="border-color: var(--border-color);">`;
+          html += `<p class="text-xxs tracking-widest uppercase mb-2 opacity-50 select-none" style="color: var(--text-sub); font-family: 'Playfair Display', serif;">${relLabel}</p>`;
+          html += `<div class="flex flex-col gap-2">`;
+
+          data.related_links.forEach((link) => {
+            const shortId = (link.to_engram_id || '').substring(0, 8);
+            const similarity = (link.strength || 0).toFixed(2);
+            const context = link.reason_of_connection || '';
+            const fullId = link.to_engram_id || '';
+            html += `
+              <div class="related-node-card group cursor-pointer rounded-xl px-3 py-2 transition-all duration-200 border"
+                   style="border-color: var(--border-color); background: var(--input-bg);"
+                   onclick="showEngramDetail('${fullId}')"
+                   onmouseenter="this.style.borderColor='rgba(139,92,246,0.5)'; this.style.background='rgba(139,92,246,0.05)'"
+                   onmouseleave="this.style.borderColor='var(--border-color)'; this.style.background='var(--input-bg)'">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-xxs tracking-widest font-mono opacity-50" style="color: var(--text-sub);">${shortId}…</span>
+                  <span class="text-xxs px-2 py-0.5 rounded-full" style="background: rgba(139,92,246,0.15); color: #a78bfa; font-family: monospace;">≈ ${similarity}</span>
+                </div>
+                <p class="text-xxs leading-relaxed opacity-70 group-hover:opacity-100 transition-opacity duration-200" style="color: var(--text-main);">${context}</p>
+                <p class="text-xxs mt-1 opacity-30 tracking-wide" style="color: var(--text-sub); font-family: serif;">
+                  ${currentLang === 'ja' ? 'クリックで詳細を表示 →' : 'Click to view details →'}
+                </p>
+              </div>`;
+          });
+
+          html += `</div></div>`;
+        } else {
+          html += `<p class="text-xxs opacity-40 mt-2" style="color: var(--text-sub);">${noRelLabel}</p>`;
+        }
+
+        window.__prevEngramData__ = prevData || data;
+        container.innerHTML = html;
+      }
+
+      function showEngramDetail(engramId) {
+        if (!engramId) return;
+        const loader = document.getElementById('loader');
+        const container = document.getElementById('resultContent');
+        loader.classList.remove('hidden');
+
+        const currentData = window.__currentEngramData__;
+
+        fetch(`/api/getEngram?id=${engramId}`)
+          .then(res => res.json())
+          .then(data => {
+            loader.classList.add('hidden');
+            window.__prevEngramData__ = currentData;
+            window.__currentEngramData__ = data;
+            renderEngramDetail(data, container, currentData);
+            document.getElementById('resultContainer').classList.remove('hidden');
+          })
+          .catch(err => {
+            loader.classList.add('hidden');
+            console.error('Failed to load related engram:', err);
+          });
       }
 
       function performSemanticSearch() {
