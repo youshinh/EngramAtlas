@@ -292,26 +292,6 @@ async function generateUrlSummaryNoise(linkUrl, currentLang, apiKey) {
   return currentLang === 'ja'
     ? `[Web参照: ${webData.title}] ${linkUrl} の中に流れる情報代謝と関係性の潮流を観測しました。この界面の奥に潜む知識のエッセンスが、私たちの記憶の動的平衡と共鳴しています。`
     : `[Web Reference: ${webData.title}] Observed the flow of information metabolism and relation streams within ${linkUrl}. The essence of knowledge behind this interface resonates with our dynamic memory equilibrium.`;
-}`;
-
-  if (apiKey && apiKey !== 'your_gemini_api_key_here') {
-    try {
-      const ai = new GoogleGenAI({ apiKey });
-      const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-      const response = await ai.models.generateContent({
-        model: model,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: { systemInstruction: systemInstruction, temperature: 0.7 }
-      });
-      return response.text.trim();
-    } catch (err) {
-      console.warn("⚠️ [Gemini URL Summarization API Error] Fallback default used:", err.message);
-    }
-  }
-
-  return currentLang === 'ja'
-    ? `[Web参照: ${webData.title}] ${linkUrl} の中に流れる情報代謝と関係性の潮流を観測しました。この界面の奥に潜む知識のエッセンスが、私たちの記憶の動的平衡と共鳴しています。`
-    : `[Web Reference: ${webData.title}] Observed the flow of information metabolism and relation streams within ${linkUrl}. The essence of knowledge behind this interface resonates with our dynamic memory equilibrium.`;
 }
 
 // Translate physical visual details or document elements via Gemini Multimodal into text thoughts
