@@ -517,9 +517,11 @@ app.post('/api/sendNoise', async (req, res) => {
         const db = dbClient.db('engram_atlas');
         const engramsCollection = db.collection('engrams');
         // 1. Gather all high-similarity candidates (>= 0.70)
-        const pastEngrams = await engramsCollection.find({ 
-          vector_embeddings: { $exists: true }
-        }).toArray();
+        // ⚡ Bolt: Optimize memory scan by projecting only required fields to avoid over-fetching large documents
+        const pastEngrams = await engramsCollection.find(
+          { vector_embeddings: { $exists: true } },
+          { projection: { _id: 1, vector_embeddings: 1, content: 1 } }
+        ).toArray();
 
         const candidates = [];
         for (const past of pastEngrams) {
@@ -752,10 +754,11 @@ app.post('/api/sendNoise', async (req, res) => {
         // isMongoActive removed — MongoDB usage is determined by MONGODB_URI presence
 
         // Find all past engrams to perform vector search locally
-        const pastEngrams = await engramsCollection.find({ 
-          _id: { $ne: newEngram._id },
-          vector_embeddings: { $exists: true }
-        }).toArray();
+        // ⚡ Bolt: Optimize memory scan by projecting only required fields to avoid over-fetching large documents
+        const pastEngrams = await engramsCollection.find(
+          { _id: { $ne: newEngram._id }, vector_embeddings: { $exists: true } },
+          { projection: { _id: 1, vector_embeddings: 1, content: 1 } }
+        ).toArray();
 
         console.log(`🔍 [MongoDB] Scanning ${pastEngrams.length} past engrams for similarities...`);
 
@@ -1307,10 +1310,11 @@ app.post('/api/updateEngram', async (req, res) => {
         await engramsCollection.updateOne({ _id: objId }, updateDoc);
 
         // c. 新しい類似性に基づく双方向リンクの再構築
-        const pastEngrams = await engramsCollection.find({ 
-          _id: { $ne: objId },
-          vector_embeddings: { $exists: true }
-        }).toArray();
+        // ⚡ Bolt: Optimize memory scan by projecting only required fields to avoid over-fetching large documents
+        const pastEngrams = await engramsCollection.find(
+          { _id: { $ne: objId }, vector_embeddings: { $exists: true } },
+          { projection: { _id: 1, vector_embeddings: 1, content: 1 } }
+        ).toArray();
 
         const similarityThreshold = 0.55;
         const matchedRelations = [];
