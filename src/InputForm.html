@@ -685,6 +685,239 @@
     </div>
 
     <script>
+      // ----------------------------------------------------
+      // 🔑 User Authentication State & Config (Firebase Auth)
+      // ----------------------------------------------------
+      let isMockAuth = false;
+      let currentUser = null;
+      let currentToken = null;
+
+      // Firebase Configuration
+      // Replace placeholders with real Firebase settings to connect to production Firebase Auth
+      const firebaseConfig = {
+        apiKey: "PLACEHOLDER_FIREBASE_API_KEY",
+        authDomain: "PLACEHOLDER_FIREBASE_AUTH_DOMAIN",
+        projectId: "PLACEHOLDER_FIREBASE_PROJECT_ID",
+        storageBucket: "PLACEHOLDER_FIREBASE_STORAGE_BUCKET",
+        messagingSenderId: "PLACEHOLDER_FIREBASE_MESSAGING_SENDER_ID",
+        appId: "PLACEHOLDER_FIREBASE_APP_ID"
+      };
+
+      const hasValidFirebaseConfig = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("PLACEHOLDER_");
+
+      if (hasValidFirebaseConfig) {
+        try {
+          firebase.initializeApp(firebaseConfig);
+          console.log("🟢 [Firebase Auth] Initialized production Firebase config.");
+        } catch (err) {
+          console.error("❌ [Firebase Auth] Initialization failed:", err);
+          isMockAuth = true;
+        }
+      } else {
+        console.warn("⚠️ [Firebase Auth] No credentials configured. Operating in MOCK Auth mode.");
+        isMockAuth = true;
+      }
+
+      // Fetch API wrapper to append JWT token to request headers
+      async function fetchWithAuth(url, options = {}) {
+        const headers = options.headers || {};
+        
+        let token = currentToken;
+        if (!token) {
+          // Default mock token for local testing / test runner bypass
+          token = 'mock-guest-token';
+        }
+        
+        headers['Authorization'] = `Bearer ${token}`;
+        
+        const finalOptions = {
+          ...options,
+          headers
+        };
+        
+        // Auto convert body to JSON string if it is an object
+        if (options.body && typeof options.body === 'object') {
+          headers['Content-Type'] = 'application/json';
+          finalOptions.body = JSON.stringify(options.body);
+        }
+
+        const res = await fetch(url, finalOptions);
+        if (res.status === 401) {
+          // Token expired or invalid, trigger sign in
+          openAuthModal();
+        }
+        return res;
+      }
+
+      // Initialize Authentication state changes
+      function initAuth() {
+        if (isMockAuth) {
+          const cachedUser = localStorage.getItem('mock_auth_user');
+          if (cachedUser) {
+            currentUser = JSON.parse(cachedUser);
+            currentToken = `mock-user-${currentUser.uid}`;
+            updateAuthUI(currentUser);
+          } else {
+            updateAuthUI(null);
+          }
+          if (typeof mapEngine !== 'undefined') mapEngine.loadAll();
+        } else {
+          firebase.auth().onAuthStateChanged(async (user) => {
+            if (user) {
+              currentUser = user;
+              currentToken = await user.getIdToken();
+              updateAuthUI(user);
+            } else {
+              currentUser = null;
+              currentToken = null;
+              updateAuthUI(null);
+            }
+            if (typeof mapEngine !== 'undefined') mapEngine.loadAll();
+          });
+        }
+      }
+
+      function updateAuthUI(user) {
+        const loggedOutDiv = document.getElementById('authLoggedOut');
+        const loggedInDiv = document.getElementById('authLoggedIn');
+        const userEmailDisplay = document.getElementById('userEmailDisplay');
+        const userAvatar = document.getElementById('userAvatar');
+
+        if (user) {
+          if (loggedOutDiv) loggedOutDiv.classList.add('hidden');
+          if (loggedInDiv) loggedInDiv.classList.remove('hidden');
+          if (userEmailDisplay) userEmailDisplay.innerText = user.email;
+          if (userAvatar) userAvatar.innerText = (user.email || 'U').substring(0, 1).toUpperCase();
+        } else {
+          if (loggedOutDiv) loggedOutDiv.classList.remove('hidden');
+          if (loggedInDiv) loggedInDiv.classList.add('hidden');
+        }
+      }
+
+      // Auth UI Handlers
+      function openAuthModal() {
+        const modal = document.getElementById('authModal');
+        if (modal) {
+          modal.classList.remove('pointer-events-none', 'opacity-0');
+          modal.classList.add('pointer-events-auto', 'opacity-100');
+          const card = modal.querySelector('.modal-card');
+          if (card) {
+            card.classList.remove('scale-95');
+            card.classList.add('scale-100');
+          }
+        }
+      }
+
+      function closeAuthModal() {
+        const modal = document.getElementById('authModal');
+        if (modal) {
+          modal.classList.remove('pointer-events-auto', 'opacity-100');
+          modal.classList.add('pointer-events-none', 'opacity-0');
+          const card = modal.querySelector('.modal-card');
+          if (card) {
+            card.classList.remove('scale-100');
+            card.classList.add('scale-95');
+          }
+        }
+      }
+
+      let currentAuthTab = 'login';
+      function switchAuthTab(tab) {
+        currentAuthTab = tab;
+        const btnLogin = document.getElementById('btnTabLogin');
+        const btnRegister = document.getElementById('btnTabRegister');
+        const submitText = document.getElementById('btnAuthSubmitText');
+        const modalTitle = document.getElementById('lblAuthModalTitle');
+
+        if (tab === 'login') {
+          if (btnLogin) btnLogin.style.backgroundColor = 'rgba(255,255,255,0.05)';
+          if (btnRegister) btnRegister.style.backgroundColor = 'transparent';
+          if (submitText) submitText.innerText = currentLang === 'ja' ? 'ログイン' : 'Sign In';
+          if (modalTitle) modalTitle.innerText = currentLang === 'ja' ? 'SIGN IN / ログイン' : 'SIGN IN / ログイン';
+        } else {
+          if (btnLogin) btnLogin.style.backgroundColor = 'transparent';
+          if (btnRegister) btnRegister.style.backgroundColor = 'rgba(255,255,255,0.05)';
+          if (submitText) submitText.innerText = currentLang === 'ja' ? '新規登録' : 'Register';
+          if (modalTitle) modalTitle.innerText = currentLang === 'ja' ? 'REGISTER / 新規登録' : 'REGISTER / 新規登録';
+        }
+      }
+
+      async function handleAuthSubmit(event) {
+        event.preventDefault();
+        const email = document.getElementById('authEmail').value.trim();
+        const password = document.getElementById('authPassword').value;
+        const errorDiv = document.getElementById('authErrorMsg');
+
+        if (errorDiv) errorDiv.classList.add('hidden');
+
+        if (isMockAuth) {
+          const uid = 'mock-' + email.replace(/[^a-zA-Z0-9]/g, '');
+          currentUser = { email, uid };
+          currentToken = `mock-user-${uid}`;
+          localStorage.setItem('mock_auth_user', JSON.stringify(currentUser));
+          updateAuthUI(currentUser);
+          closeAuthModal();
+          if (typeof mapEngine !== 'undefined') mapEngine.loadAll();
+        } else {
+          try {
+            if (currentAuthTab === 'login') {
+              await firebase.auth().signInWithEmailAndPassword(email, password);
+            } else {
+              await firebase.auth().createUserWithEmailAndPassword(email, password);
+            }
+            closeAuthModal();
+          } catch (err) {
+            console.error("❌ Auth submit failed:", err.message);
+            if (errorDiv) {
+              errorDiv.innerText = err.message;
+              errorDiv.classList.remove('hidden');
+            }
+          }
+        }
+      }
+
+      async function handleGoogleSignIn() {
+        const errorDiv = document.getElementById('authErrorMsg');
+        if (errorDiv) errorDiv.classList.add('hidden');
+
+        if (isMockAuth) {
+          currentUser = { email: 'mock.google@example.com', uid: 'mock-google-user-123' };
+          currentToken = `mock-user-google`;
+          localStorage.setItem('mock_auth_user', JSON.stringify(currentUser));
+          updateAuthUI(currentUser);
+          closeAuthModal();
+          if (typeof mapEngine !== 'undefined') mapEngine.loadAll();
+        } else {
+          try {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            await firebase.auth().signInWithPopup(provider);
+            closeAuthModal();
+          } catch (err) {
+            console.error("❌ Google Auth sign in failed:", err.message);
+            if (errorDiv) {
+              errorDiv.innerText = err.message;
+              errorDiv.classList.remove('hidden');
+            }
+          }
+        }
+      }
+
+      async function handleSignOut() {
+        if (isMockAuth) {
+          currentUser = null;
+          currentToken = null;
+          localStorage.removeItem('mock_auth_user');
+          updateAuthUI(null);
+          if (typeof mapEngine !== 'undefined') mapEngine.loadAll();
+        } else {
+          try {
+            await firebase.auth().signOut();
+          } catch (err) {
+            console.error("❌ Sign out failed:", err.message);
+          }
+        }
+      }
+
       // Configure marked.js options for line breaks
       marked.setOptions({
         breaks: true,
@@ -1078,238 +1311,7 @@
         });
       }
 
-      // ----------------------------------------------------
-      // 🔑 User Authentication State & Config (Firebase Auth)
-      // ----------------------------------------------------
-      let isMockAuth = false;
-      let currentUser = null;
-      let currentToken = null;
-
-      // Firebase Configuration
-      // Replace placeholders with real Firebase settings to connect to production Firebase Auth
-      const firebaseConfig = {
-        apiKey: "PLACEHOLDER_FIREBASE_API_KEY",
-        authDomain: "PLACEHOLDER_FIREBASE_AUTH_DOMAIN",
-        projectId: "PLACEHOLDER_FIREBASE_PROJECT_ID",
-        storageBucket: "PLACEHOLDER_FIREBASE_STORAGE_BUCKET",
-        messagingSenderId: "PLACEHOLDER_FIREBASE_MESSAGING_SENDER_ID",
-        appId: "PLACEHOLDER_FIREBASE_APP_ID"
-      };
-
-      const hasValidFirebaseConfig = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("PLACEHOLDER_");
-
-      if (hasValidFirebaseConfig) {
-        try {
-          firebase.initializeApp(firebaseConfig);
-          console.log("🟢 [Firebase Auth] Initialized production Firebase config.");
-        } catch (err) {
-          console.error("❌ [Firebase Auth] Initialization failed:", err);
-          isMockAuth = true;
-        }
-      } else {
-        console.warn("⚠️ [Firebase Auth] No credentials configured. Operating in MOCK Auth mode.");
-        isMockAuth = true;
-      }
-
-      // Fetch API wrapper to append JWT token to request headers
-      async function fetchWithAuth(url, options = {}) {
-        const headers = options.headers || {};
-        
-        let token = currentToken;
-        if (!token) {
-          // Default mock token for local testing / test runner bypass
-          token = 'mock-guest-token';
-        }
-        
-        headers['Authorization'] = `Bearer ${token}`;
-        
-        const finalOptions = {
-          ...options,
-          headers
-        };
-        
-        // Auto convert body to JSON string if it is an object
-        if (options.body && typeof options.body === 'object') {
-          headers['Content-Type'] = 'application/json';
-          finalOptions.body = JSON.stringify(options.body);
-        }
-
-        const res = await fetch(url, finalOptions);
-        if (res.status === 401) {
-          // Token expired or invalid, trigger sign in
-          openAuthModal();
-        }
-        return res;
-      }
-
-      // Initialize Authentication state changes
-      function initAuth() {
-        if (isMockAuth) {
-          const cachedUser = localStorage.getItem('mock_auth_user');
-          if (cachedUser) {
-            currentUser = JSON.parse(cachedUser);
-            currentToken = `mock-user-${currentUser.uid}`;
-            updateAuthUI(currentUser);
-          } else {
-            updateAuthUI(null);
-          }
-          if (typeof mapEngine !== 'undefined') mapEngine.loadAll();
-        } else {
-          firebase.auth().onAuthStateChanged(async (user) => {
-            if (user) {
-              currentUser = user;
-              currentToken = await user.getIdToken();
-              updateAuthUI(user);
-            } else {
-              currentUser = null;
-              currentToken = null;
-              updateAuthUI(null);
-            }
-            if (typeof mapEngine !== 'undefined') mapEngine.loadAll();
-          });
-        }
-      }
-
-      function updateAuthUI(user) {
-        const loggedOutDiv = document.getElementById('authLoggedOut');
-        const loggedInDiv = document.getElementById('authLoggedIn');
-        const userEmailDisplay = document.getElementById('userEmailDisplay');
-        const userAvatar = document.getElementById('userAvatar');
-
-        if (user) {
-          if (loggedOutDiv) loggedOutDiv.classList.add('hidden');
-          if (loggedInDiv) loggedInDiv.classList.remove('hidden');
-          if (userEmailDisplay) userEmailDisplay.innerText = user.email;
-          if (userAvatar) userAvatar.innerText = (user.email || 'U').substring(0, 1).toUpperCase();
-        } else {
-          if (loggedOutDiv) loggedOutDiv.classList.remove('hidden');
-          if (loggedInDiv) loggedInDiv.classList.add('hidden');
-        }
-      }
-
-      // Auth UI Handlers
-      function openAuthModal() {
-        const modal = document.getElementById('authModal');
-        if (modal) {
-          modal.classList.remove('pointer-events-none', 'opacity-0');
-          modal.classList.add('pointer-events-auto', 'opacity-100');
-          const card = modal.querySelector('.modal-card');
-          if (card) {
-            card.classList.remove('scale-95');
-            card.classList.add('scale-100');
-          }
-        }
-      }
-
-      function closeAuthModal() {
-        const modal = document.getElementById('authModal');
-        if (modal) {
-          modal.classList.remove('pointer-events-auto', 'opacity-100');
-          modal.classList.add('pointer-events-none', 'opacity-0');
-          const card = modal.querySelector('.modal-card');
-          if (card) {
-            card.classList.remove('scale-100');
-            card.classList.add('scale-95');
-          }
-        }
-      }
-
-      let currentAuthTab = 'login';
-      function switchAuthTab(tab) {
-        currentAuthTab = tab;
-        const btnLogin = document.getElementById('btnTabLogin');
-        const btnRegister = document.getElementById('btnTabRegister');
-        const submitText = document.getElementById('btnAuthSubmitText');
-        const modalTitle = document.getElementById('lblAuthModalTitle');
-
-        if (tab === 'login') {
-          if (btnLogin) btnLogin.style.backgroundColor = 'rgba(255,255,255,0.05)';
-          if (btnRegister) btnRegister.style.backgroundColor = 'transparent';
-          if (submitText) submitText.innerText = currentLang === 'ja' ? 'ログイン' : 'Sign In';
-          if (modalTitle) modalTitle.innerText = currentLang === 'ja' ? 'SIGN IN / ログイン' : 'SIGN IN / ログイン';
-        } else {
-          if (btnLogin) btnLogin.style.backgroundColor = 'transparent';
-          if (btnRegister) btnRegister.style.backgroundColor = 'rgba(255,255,255,0.05)';
-          if (submitText) submitText.innerText = currentLang === 'ja' ? '新規登録' : 'Register';
-          if (modalTitle) modalTitle.innerText = currentLang === 'ja' ? 'REGISTER / 新規登録' : 'REGISTER / 新規登録';
-        }
-      }
-
-      async function handleAuthSubmit(event) {
-        event.preventDefault();
-        const email = document.getElementById('authEmail').value.trim();
-        const password = document.getElementById('authPassword').value;
-        const errorDiv = document.getElementById('authErrorMsg');
-
-        if (errorDiv) errorDiv.classList.add('hidden');
-
-        if (isMockAuth) {
-          const uid = 'mock-' + email.replace(/[^a-zA-Z0-9]/g, '');
-          currentUser = { email, uid };
-          currentToken = `mock-user-${uid}`;
-          localStorage.setItem('mock_auth_user', JSON.stringify(currentUser));
-          updateAuthUI(currentUser);
-          closeAuthModal();
-          if (typeof mapEngine !== 'undefined') mapEngine.loadAll();
-        } else {
-          try {
-            if (currentAuthTab === 'login') {
-              await firebase.auth().signInWithEmailAndPassword(email, password);
-            } else {
-              await firebase.auth().createUserWithEmailAndPassword(email, password);
-            }
-            closeAuthModal();
-          } catch (err) {
-            console.error("❌ Auth submit failed:", err.message);
-            if (errorDiv) {
-              errorDiv.innerText = err.message;
-              errorDiv.classList.remove('hidden');
-            }
-          }
-        }
-      }
-
-      async function handleGoogleSignIn() {
-        const errorDiv = document.getElementById('authErrorMsg');
-        if (errorDiv) errorDiv.classList.add('hidden');
-
-        if (isMockAuth) {
-          currentUser = { email: 'mock.google@example.com', uid: 'mock-google-user-123' };
-          currentToken = `mock-user-google`;
-          localStorage.setItem('mock_auth_user', JSON.stringify(currentUser));
-          updateAuthUI(currentUser);
-          closeAuthModal();
-          if (typeof mapEngine !== 'undefined') mapEngine.loadAll();
-        } else {
-          try {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            await firebase.auth().signInWithPopup(provider);
-            closeAuthModal();
-          } catch (err) {
-            console.error("❌ Google Auth sign in failed:", err.message);
-            if (errorDiv) {
-              errorDiv.innerText = err.message;
-              errorDiv.classList.remove('hidden');
-            }
-          }
-        }
-      }
-
-      async function handleSignOut() {
-        if (isMockAuth) {
-          currentUser = null;
-          currentToken = null;
-          localStorage.removeItem('mock_auth_user');
-          updateAuthUI(null);
-          if (typeof mapEngine !== 'undefined') mapEngine.loadAll();
-        } else {
-          try {
-            await firebase.auth().signOut();
-          } catch (err) {
-            console.error("❌ Sign out failed:", err.message);
-          }
-        }
-      }
+      // (Auth code block moved to the top of script)
 
       const isLocal = !window.google || !window.google.script;
 
