@@ -689,6 +689,7 @@
       // 🔑 User Authentication State & Config (Firebase Auth)
       // ----------------------------------------------------
       let isMockAuth = false;
+      let mapEngine = null;
       let currentUser = null;
       let currentToken = null;
 
@@ -760,7 +761,7 @@
           } else {
             updateAuthUI(null);
           }
-          if (typeof mapEngine !== 'undefined') mapEngine.loadAll();
+          if (mapEngine && typeof mapEngine.loadAll === 'function') mapEngine.loadAll();
         } else {
           firebase.auth().onAuthStateChanged(async (user) => {
             if (user) {
@@ -772,7 +773,7 @@
               currentToken = null;
               updateAuthUI(null);
             }
-            if (typeof mapEngine !== 'undefined') mapEngine.loadAll();
+            if (mapEngine && typeof mapEngine.loadAll === 'function') mapEngine.loadAll();
           });
         }
       }
@@ -857,7 +858,7 @@
           localStorage.setItem('mock_auth_user', JSON.stringify(currentUser));
           updateAuthUI(currentUser);
           closeAuthModal();
-          if (typeof mapEngine !== 'undefined') mapEngine.loadAll();
+          if (mapEngine && typeof mapEngine.loadAll === 'function') mapEngine.loadAll();
         } else {
           try {
             if (currentAuthTab === 'login') {
@@ -886,7 +887,7 @@
           localStorage.setItem('mock_auth_user', JSON.stringify(currentUser));
           updateAuthUI(currentUser);
           closeAuthModal();
-          if (typeof mapEngine !== 'undefined') mapEngine.loadAll();
+          if (mapEngine && typeof mapEngine.loadAll === 'function') mapEngine.loadAll();
         } else {
           try {
             const provider = new firebase.auth.GoogleAuthProvider();
@@ -908,7 +909,7 @@
           currentToken = null;
           localStorage.removeItem('mock_auth_user');
           updateAuthUI(null);
-          if (typeof mapEngine !== 'undefined') mapEngine.loadAll();
+          if (mapEngine && typeof mapEngine.loadAll === 'function') mapEngine.loadAll();
         } else {
           try {
             await firebase.auth().signOut();
@@ -2997,12 +2998,12 @@
       }
 
       // Initialize mapping engine globally
-      const mapEngine = new SemanticMapEngine('memoryMapCanvas');
+      mapEngine = new SemanticMapEngine('memoryMapCanvas');
       mapEngine.loadAll();
     </script>
 
     <!-- Auth Modal (Google & Email Registration / Sign In) -->
-    <div id="authModal" class="fixed inset-0 z-50 flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-300" style="background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px);">
+    <div id="authModal" class="fixed inset-0 flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-300" style="background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); z-index: 1000;">
       <div class="modal-card w-80 p-6 rounded-2xl border shadow-2xl transition-all duration-300 transform scale-95 pointer-events-auto" style="background-color: var(--card-bg); border-color: var(--border-color); color: var(--text-main);">
         <!-- Modal Header -->
         <div class="flex items-center justify-between mb-4 pb-2 border-b border-dashed" style="border-color: var(--border-color);">
