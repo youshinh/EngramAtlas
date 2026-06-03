@@ -289,7 +289,7 @@ function fetchUrlTitleAndText(targetUrl, redirectCount = 0, visitedUrls = []) {
 
             for (let addressStr of addresses) {
               if (
-                addressStr === '127.0.0.1' ||
+                addressStr.startsWith('127.') ||
                 addressStr === '::1' ||
                 addressStr === '0.0.0.0' ||
                 addressStr === '169.254.169.254' ||
@@ -488,8 +488,9 @@ app.post('/api/sendNoise', async (req, res) => {
   }
 
   // 1.5. Detect Autonomous Intent (Approach A: Forget via Dialogue)
-  const lowerInput = userInput ? userInput.toLowerCase() : "";
-  const isForgetIntent = userInput && (
+  const safeUserInput = typeof userInput === 'string' ? userInput : String(userInput || "");
+  const lowerInput = safeUserInput.toLowerCase();
+  const isForgetIntent = safeUserInput && (
     lowerInput.includes("忘却") ||
     lowerInput.includes("消去") ||
     lowerInput.includes("忘れて") ||
@@ -684,14 +685,14 @@ app.post('/api/sendNoise', async (req, res) => {
   }
 
   // Merge original user raw text with translated multimodal thoughts
-  let processedInputText = userInput || "";
+  let processedInputText = safeUserInput || "";
   if (translatedNoise) {
     processedInputText = processedInputText
       ? `${processedInputText}\n\n${translatedNoise}`
       : translatedNoise;
   }
 
-  console.log(`\n🔮 [Received Noise in ${currentLang.toUpperCase()}]: "${processedInputText.substring(0, 60)}..."`);
+  console.log(`\n🔮 [Received Noise in ${currentLang.toUpperCase()}]: "${String(processedInputText).substring(0, 60)}..."`);
 
   // 2. Generate Embeddings for current processed input
   const embedding = await getEmbedding(processedInputText, apiKey);
