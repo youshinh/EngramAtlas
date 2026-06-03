@@ -58,7 +58,8 @@ async function startServer() {
   console.log(`🚀 Starting local server for validation...`);
   serverProcess = spawn('node', ['server.js'], {
     stdio: 'pipe',
-    detached: false
+    detached: false,
+    env: { ...process.env, BYPASS_AUTH: 'true' }
   });
 
   serverProcess.stdout.on('data', (data) => {

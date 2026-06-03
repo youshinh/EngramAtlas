@@ -10,6 +10,86 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '20mb' }));
 
+// ----------------------------------------------------
+// 🔑 User Authentication Setup (Firebase Admin SDK)
+// ----------------------------------------------------
+const admin = require('firebase-admin');
+let firebaseApp = null;
+
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  try {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    firebaseApp = admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+    console.log("🟢 [Firebase Admin] Initialized via FIREBASE_SERVICE_ACCOUNT env var.");
+  } catch (err) {
+    console.error("❌ Failed to initialize Firebase Admin from FIREBASE_SERVICE_ACCOUNT env var:", err);
+  }
+} else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+  try {
+    firebaseApp = admin.initializeApp({
+      credential: admin.credential.applicationDefault()
+    });
+    console.log("🟢 [Firebase Admin] Initialized via GOOGLE_APPLICATION_CREDENTIALS.");
+  } catch (err) {
+    console.error("❌ Failed to initialize Firebase Admin from GOOGLE_APPLICATION_CREDENTIALS:", err);
+  }
+} else {
+  const localKeyPath = path.join(__dirname, 'firebase-service-account.json');
+  if (fs.existsSync(localKeyPath)) {
+    try {
+      firebaseApp = admin.initializeApp({
+        credential: admin.credential.cert(require(localKeyPath))
+      });
+      console.log("🟢 [Firebase Admin] Initialized via local firebase-service-account.json.");
+    } catch (err) {
+      console.error("❌ Failed to initialize Firebase Admin from local key file:", err);
+    }
+  } else {
+    console.warn("⚠️ [Firebase Admin] Firebase Admin SDK is NOT initialized. Auth features will run in MOCK mode.");
+  }
+}
+
+// Authentication Middleware to secure all API endpoints
+async function authMiddleware(req, res, next) {
+  // If BYPASS_AUTH env is 'true', bypass verify checks (useful for local dev/testing)
+  if (process.env.BYPASS_AUTH === 'true') {
+    req.userId = 'guest_user';
+    return next();
+  }
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized: No token provided' });
+  }
+
+  const token = authHeader.split('Bearer ')[1];
+
+  // Allow bypass for integration testing (npm run eval / test scripts)
+  if (token.startsWith('mock-')) {
+    req.userId = token;
+    return next();
+  }
+
+  if (!firebaseApp) {
+    // Development Fallback: If Firebase is not initialized, treat raw token as userId
+    console.warn("⚠️ Firebase Admin SDK is not initialized. Using raw token string as userId.");
+    req.userId = token;
+    return next();
+  }
+
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    req.userId = decodedToken.uid;
+    req.userEmail = decodedToken.email;
+    next();
+  } catch (error) {
+    console.error('❌ Error verifying Firebase ID token:', error.message);
+    return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+  }
+}
+
 // In-memory mock database for fallback (used when MONGODB_URI is not set)
 let mockEngrams = [];
 
@@ -105,12 +185,13 @@ function getMockEmbedding(text) {
 
 // Pre-populate mock database with initial beautiful engrams to prevent empty canvas
 const initialNoise1 = "階段の段板における木目の『反り』を構造強度に組み込む逆限定設計。DMR加工による気流と滑り止め制御。";
-const initialNoise2 = "不均質マテリアル（癖木や端材）の長所を活かす匠の技と、境界面における流体抵抗削減（DMR）技術の共振。";
+const initialNoise2 = "不均質マテリアル（癖木や端材）の長所を活かす匠の技と、境境面における流体抵抗削減（DMR）技術の共振。";
 const initialNoise3 = "関係性の規約としての自己組織化メモリ。静的なドキュメント管理を超えて、意味のゆらぎをリアルタイムにマッピングする。";
 
 mockEngrams = [
   {
     _id: "sample_1",
+    userId: "guest_user",
     content: initialNoise1,
     raw_input_type: "text",
     created_at: new Date(Date.now() - 7200000),
@@ -123,6 +204,7 @@ mockEngrams = [
   },
   {
     _id: "sample_2",
+    userId: "guest_user",
     content: initialNoise2,
     raw_input_type: "text",
     created_at: new Date(Date.now() - 3600000),
@@ -135,6 +217,7 @@ mockEngrams = [
   },
   {
     _id: "sample_3",
+    userId: "guest_user",
     content: initialNoise3,
     raw_input_type: "text",
     created_at: new Date(),
@@ -501,7 +584,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'src', 'InputForm.html'));
 });
 
-app.post('/api/sendNoise', async (req, res) => {
+app.post('/api/sendNoise', authMiddleware, async (req, res) => {
   const { userInput, lang, simulateError, attachment, linkUrl } = req.body;
   const currentLang = lang || 'en';
   const apiKey = process.env.GEMINI_API_KEY;
@@ -546,7 +629,7 @@ app.post('/api/sendNoise', async (req, res) => {
         // 1. Gather all high-similarity candidates (>= 0.70)
         // ⚡ Bolt: Optimize memory scan by projecting only required fields to avoid over-fetching large documents
         const pastEngrams = await engramsCollection.find(
-          { vector_embeddings: { $exists: true } },
+          { userId: req.userId, vector_embeddings: { $exists: true } },
           { projection: { _id: 1, vector_embeddings: 1, content: 1 } }
         ).toArray();
 
@@ -583,10 +666,10 @@ app.post('/api/sendNoise', async (req, res) => {
         if (targetEngram) {
           targetId = targetEngram._id.toString();
           // Delete target
-          const deleteRes = await engramsCollection.deleteOne({ _id: targetEngram._id });
+          const deleteRes = await engramsCollection.deleteOne({ _id: targetEngram._id, userId: req.userId });
           // References cleanup ($pull)
           const updateRes = await engramsCollection.updateMany(
-            {},
+            { userId: req.userId },
             { $pull: { related_links: { to_engram_id: targetId } } }
           );
           console.log(`🗑️ [MongoDB] Autonomously forgotten engram: ${targetId}. Success: ${deleteRes.deletedCount > 0}. Cleared references: ${updateRes.modifiedCount}`);
@@ -600,7 +683,7 @@ app.post('/api/sendNoise', async (req, res) => {
     if (!useMongo) {
       // Mock DB: Gather high-similarity candidates
       const candidates = [];
-      for (const past of mockEngrams) {
+      for (const past of mockEngrams.filter(e => e.userId === req.userId)) {
         const score = cosineSimilarity(embedding, past.vector_embeddings);
         if (score >= 0.70) {
           candidates.push({ engram: past, score });
@@ -618,7 +701,7 @@ app.post('/api/sendNoise', async (req, res) => {
           }
         });
       } else {
-        for (const past of mockEngrams) {
+        for (const past of mockEngrams.filter(e => e.userId === req.userId)) {
           const score = cosineSimilarity(embedding, past.vector_embeddings);
           if (score >= 0.50 && score > maxScore) {
             maxScore = score;
@@ -629,9 +712,9 @@ app.post('/api/sendNoise', async (req, res) => {
 
       if (targetEngram) {
         targetId = targetEngram._id;
-        mockEngrams = mockEngrams.filter(e => e._id !== targetId);
+        mockEngrams = mockEngrams.filter(e => !(e._id === targetId && e.userId === req.userId));
         mockEngrams.forEach(e => {
-          if (e.related_links) {
+          if (e.userId === req.userId && e.related_links) {
             e.related_links = e.related_links.filter(link => link.to_engram_id !== targetId);
           }
         });
@@ -734,6 +817,7 @@ app.post('/api/sendNoise', async (req, res) => {
 
   // Define new Engram structure
   const newEngram = {
+    userId: req.userId,
     content: processedInputText,
     raw_input_type: inputType,
     created_at: new Date(),
@@ -783,7 +867,7 @@ app.post('/api/sendNoise', async (req, res) => {
         // Find all past engrams to perform vector search locally
         // ⚡ Bolt: Optimize memory scan by projecting only required fields to avoid over-fetching large documents
         const pastEngrams = await engramsCollection.find(
-          { _id: { $ne: newEngram._id }, vector_embeddings: { $exists: true } },
+          { _id: { $ne: newEngram._id }, userId: req.userId, vector_embeddings: { $exists: true } },
           { projection: { _id: 1, vector_embeddings: 1, content: 1 } }
         ).toArray();
 
@@ -875,7 +959,7 @@ app.post('/api/sendNoise', async (req, res) => {
     const candidates = [];
 
     // Perform Similarity Search on in-memory collection
-    for (const past of mockEngrams) {
+    for (const past of mockEngrams.filter(e => e.userId === req.userId)) {
       const score = cosineSimilarity(embedding, past.vector_embeddings);
       if (score >= similarityThreshold) {
         candidates.push({ past, score });
@@ -1130,7 +1214,7 @@ ${detailsReport}
 // 🧠 Verification and Semantic Navigation API (Day 12-14)
 // ----------------------------------------------------
 
-app.get('/api/getEngram', async (req, res) => {
+app.get('/api/getEngram', authMiddleware, async (req, res) => {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: "ID is required" });
 
@@ -1151,7 +1235,7 @@ app.get('/api/getEngram', async (req, res) => {
           return res.status(400).json({ error: "Invalid ObjectId format" });
         }
         
-        const engram = await engramsCollection.findOne({ _id: objId });
+        const engram = await engramsCollection.findOne({ _id: objId, userId: req.userId });
         if (!engram) {
           return res.status(404).json({ error: "Engram not found" });
         }
@@ -1195,7 +1279,7 @@ app.get('/api/getEngram', async (req, res) => {
         await dbClient.close();
       }
     } else {
-      const engram = mockEngrams.find(e => e._id === id);
+      const engram = mockEngrams.find(e => e._id === id && e.userId === req.userId);
       if (!engram) {
         return res.status(404).json({ error: "Engram not found" });
       }
@@ -1218,7 +1302,7 @@ app.get('/api/getEngram', async (req, res) => {
   }
 });
 
-app.post('/api/forgetEngram', async (req, res) => {
+app.post('/api/forgetEngram', authMiddleware, async (req, res) => {
   const { db_id } = req.body;
   if (!db_id) return res.status(400).json({ error: "db_id is required" });
 
@@ -1241,11 +1325,11 @@ app.post('/api/forgetEngram', async (req, res) => {
         }
 
         // 1. 指定ドキュメントの削除
-        const deleteRes = await engramsCollection.deleteOne({ _id: objId });
+        const deleteRes = await engramsCollection.deleteOne({ _id: objId, userId: req.userId });
         
         // 2. 参照のちぎり取り（他のすべての related_links から db_id への参照を pull する）
         const updateRes = await engramsCollection.updateMany(
-          {},
+          { userId: req.userId },
           { $pull: { related_links: { to_engram_id: db_id.toString() } } }
         );
 
@@ -1256,12 +1340,12 @@ app.post('/api/forgetEngram', async (req, res) => {
       }
     } else {
       // Mock DB
-      const exists = mockEngrams.some(e => e._id === db_id);
-      mockEngrams = mockEngrams.filter(e => e._id !== db_id);
+      const exists = mockEngrams.some(e => e._id === db_id && e.userId === req.userId);
+      mockEngrams = mockEngrams.filter(e => !(e._id === db_id && e.userId === req.userId));
       
       // 参照のちぎり取り
       mockEngrams.forEach(e => {
-        if (e.related_links) {
+        if (e.userId === req.userId && e.related_links) {
           e.related_links = e.related_links.filter(link => link.to_engram_id !== db_id);
         }
       });
@@ -1275,7 +1359,7 @@ app.post('/api/forgetEngram', async (req, res) => {
   }
 });
 
-app.post('/api/updateEngram', async (req, res) => {
+app.post('/api/updateEngram', authMiddleware, async (req, res) => {
   const { db_id, userInput, lang, linkUrl, attachment } = req.body;
   if (!db_id) return res.status(400).json({ error: "db_id is required" });
   if (!userInput && !attachment && !linkUrl) {
@@ -1332,7 +1416,7 @@ app.post('/api/updateEngram', async (req, res) => {
 
         // a. 相手ノードからの古い参照の完全クリーンアップ（この db_id への参照を pull する）
         await engramsCollection.updateMany(
-          {},
+          { userId: req.userId },
           { $pull: { related_links: { to_engram_id: db_id.toString() } } }
         );
 
@@ -1355,12 +1439,16 @@ app.post('/api/updateEngram', async (req, res) => {
           }
         };
 
-        await engramsCollection.updateOne({ _id: objId }, updateDoc);
+        // Only update if it belongs to current user
+        const updateResult = await engramsCollection.updateOne({ _id: objId, userId: req.userId }, updateDoc);
+        if (updateResult.matchedCount === 0) {
+          return res.status(403).json({ error: "Access denied or engram not found" });
+        }
 
         // c. 新しい類似性に基づく双方向リンクの再構築
         // ⚡ Bolt: Optimize memory scan by projecting only required fields to avoid over-fetching large documents
         const pastEngrams = await engramsCollection.find(
-          { _id: { $ne: objId }, vector_embeddings: { $exists: true } },
+          { _id: { $ne: objId }, userId: req.userId, vector_embeddings: { $exists: true } },
           { projection: { _id: 1, vector_embeddings: 1, content: 1 } }
         ).toArray();
 
@@ -1392,7 +1480,7 @@ app.post('/api/updateEngram', async (req, res) => {
 
           // 自分側に追加
           await engramsCollection.updateOne(
-            { _id: objId },
+            { _id: objId, userId: req.userId },
             { 
               $push: { 
                 related_links: newLinkForCurrent,
@@ -1412,7 +1500,7 @@ app.post('/api/updateEngram', async (req, res) => {
             reason_of_connection: reason
           };
           await engramsCollection.updateOne(
-            { _id: past._id },
+            { _id: past._id, userId: req.userId },
             { 
               $push: { 
                 related_links: newLinkForPast,
@@ -1476,12 +1564,12 @@ app.post('/api/updateEngram', async (req, res) => {
       }
     } else {
       // Mock DB
-      const engram = mockEngrams.find(e => e._id === db_id);
+      const engram = mockEngrams.find(e => e._id === db_id && e.userId === req.userId);
       if (!engram) return res.status(404).json({ error: "Mock engram not found" });
 
       // a. 相手ノードからの古い参照のクリーンアップ
       mockEngrams.forEach(e => {
-        if (e.related_links) {
+        if (e.userId === req.userId && e.related_links) {
           e.related_links = e.related_links.filter(link => link.to_engram_id !== db_id);
         }
       });
@@ -1504,7 +1592,7 @@ app.post('/api/updateEngram', async (req, res) => {
       const matchedRelations = [];
       const candidates = [];
 
-      for (const past of mockEngrams) {
+      for (const past of mockEngrams.filter(e => e.userId === req.userId)) {
         if (past._id === db_id) continue;
         const score = cosineSimilarity(embedding, past.vector_embeddings);
         if (score >= similarityThreshold) {
@@ -1568,7 +1656,7 @@ app.post('/api/updateEngram', async (req, res) => {
   }
 });
 
-app.get('/api/search', async (req, res) => {
+app.get('/api/search', authMiddleware, async (req, res) => {
   const { query, lang } = req.query;
   const currentLang = lang || 'en';
   const apiKey = process.env.GEMINI_API_KEY;
@@ -1597,7 +1685,8 @@ app.get('/api/search', async (req, res) => {
                 path: "vector_embeddings",
                 queryVector: embedding,
                 numCandidates: 100,
-                limit: 10
+                limit: 10,
+                filter: { userId: req.userId }
               }
             },
             {
@@ -1617,7 +1706,7 @@ app.get('/api/search', async (req, res) => {
         }
 
         // Fallback: local memory scan over Mongo documents
-        const allEngrams = await engramsCollection.find({}).toArray();
+        const allEngrams = await engramsCollection.find({ userId: req.userId }).toArray();
         const results = allEngrams.map(e => {
           let score = 0;
           if (e.vector_embeddings) {
@@ -1636,7 +1725,7 @@ app.get('/api/search', async (req, res) => {
       }
     } else {
       // Mock DB manual similarity scan
-      const results = mockEngrams.map(e => {
+      const results = mockEngrams.filter(e => e.userId === req.userId).map(e => {
         let score = 0;
         if (e.vector_embeddings) {
           score = cosineSimilarity(embedding, e.vector_embeddings);
@@ -1659,7 +1748,7 @@ app.get('/api/search', async (req, res) => {
 // -------------------------------------------------------
 // 🗑️ DB Reset Endpoint — clears all engrams from MongoDB
 // -------------------------------------------------------
-app.delete('/api/resetDatabase', async (req, res) => {
+app.delete('/api/resetDatabase', authMiddleware, async (req, res) => {
   console.log('🗑️ [Reset Database] Request received.');
   try {
     if (hasMongoUri()) {
@@ -1668,15 +1757,15 @@ app.delete('/api/resetDatabase', async (req, res) => {
       try {
         const db = dbClient.db('engram_atlas');
         const engramsCollection = db.collection('engrams');
-        const result = await engramsCollection.deleteMany({});
+        const result = await engramsCollection.deleteMany({ userId: req.userId });
         console.log(`🗑️ [Reset Database] Deleted ${result.deletedCount} engrams from MongoDB Atlas.`);
         return res.json({ success: true, mode: 'mongodb', deletedCount: result.deletedCount });
       } finally {
         await dbClient.close();
       }
     } else {
-      const count = mockEngrams.length;
-      mockEngrams = [];
+      const count = mockEngrams.filter(e => e.userId === req.userId).length;
+      mockEngrams = mockEngrams.filter(e => e.userId !== req.userId);
       console.log(`🗑️ [Reset Database] Cleared ${count} engrams from mock memory.`);
       return res.json({ success: true, mode: 'mock', deletedCount: count });
     }
@@ -1686,7 +1775,7 @@ app.delete('/api/resetDatabase', async (req, res) => {
   }
 });
 
-app.get('/api/getAllEngrams', async (req, res) => {
+app.get('/api/getAllEngrams', authMiddleware, async (req, res) => {
 
   const mongoUri = process.env.MONGODB_URI;
 
@@ -1700,7 +1789,7 @@ app.get('/api/getAllEngrams', async (req, res) => {
         
         // 3,072次元ベクトルは可視化に不要なので除外してトラフィックを節約
         const engrams = await engramsCollection.find(
-          {},
+          { userId: req.userId },
           { projection: { vector_embeddings: 0 } }
         ).toArray();
         
@@ -1710,7 +1799,7 @@ app.get('/api/getAllEngrams', async (req, res) => {
       }
     } else {
       // Mock DB - ベクトルを除外してコピー
-      const engrams = mockEngrams.map(e => {
+      const engrams = mockEngrams.filter(e => e.userId === req.userId).map(e => {
         const { vector_embeddings, ...rest } = e;
         return rest;
       });

@@ -7,6 +7,9 @@
     <!-- Google Fonts: Noto Serif JP for elegant Japanese, and Playfair Display for headers -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <!-- Marked JS for premium Markdown parsing -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
@@ -453,6 +456,30 @@
                   <button id="btnTextSizeSm" onclick="setTextSize('sm')" class="flex-1 py-1.5 text-center focus:outline-none transition-colors duration-200 font-light text-xxs">小 (S)</button>
                   <button id="btnTextSizeMd" onclick="setTextSize('md')" class="flex-1 py-1.5 text-center focus:outline-none transition-colors duration-200 font-light text-xxs">中 (M)</button>
                   <button id="btnTextSizeLg" onclick="setTextSize('lg')" class="flex-1 py-1.5 text-center focus:outline-none transition-colors duration-200 font-light text-xxs">大 (L)</button>
+                </div>
+              </div>
+
+              <!-- User Authentication Section -->
+              <div class="space-y-1.5 pt-3 border-t border-dashed" style="border-color: var(--border-color);">
+                <label class="block tracking-wider font-medium text-xxs opacity-75" id="lblAuthTitle">MEMORY OWNER / 所有者</label>
+                <!-- Logged Out View -->
+                <div id="authLoggedOut" class="space-y-2">
+                  <p class="text-xxs opacity-60 leading-normal" id="lblAuthDesc" style="color: var(--text-sub);">Sign in to save your own memory planet.</p>
+                  <button onclick="openAuthModal()" class="w-full py-1.5 px-3 rounded-lg border text-center font-medium transition-all duration-300 hover:scale-102 flex items-center justify-center space-x-1" style="border-color: var(--border-color); background-color: rgba(255,255,255,0.05);">
+                    <span id="btnSignInText">Sign In / ログイン</span>
+                  </button>
+                </div>
+                <!-- Logged In View -->
+                <div id="authLoggedIn" class="space-y-2 hidden">
+                  <div class="flex items-center space-x-2">
+                    <div class="w-6 h-6 rounded-full flex items-center justify-center font-bold text-xxs" style="background-color: var(--accent-color, #4f46e5); color: #fff;" id="userAvatar">U</div>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-xxs truncate font-medium" id="userEmailDisplay" style="color: var(--text-main);">user@example.com</p>
+                    </div>
+                  </div>
+                  <button onclick="handleSignOut()" class="w-full py-1.5 px-3 rounded-lg border text-center font-medium transition-all duration-300 hover:scale-102 flex items-center justify-center space-x-1" style="border-color: var(--border-color); background-color: rgba(255,255,255,0.05); color: #f87171;">
+                    <span id="btnSignOutText">Sign Out / ログアウト</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -1007,6 +1034,7 @@
 
       // Initial settings load
       loadCachedSettings();
+      initAuth(); // Initialize Firebase / Mock Authentication
       applyTranslations();
       updateSettingsUI();
 
@@ -1048,6 +1076,239 @@
             }
           }
         });
+      }
+
+      // ----------------------------------------------------
+      // 🔑 User Authentication State & Config (Firebase Auth)
+      // ----------------------------------------------------
+      let isMockAuth = false;
+      let currentUser = null;
+      let currentToken = null;
+
+      // Firebase Configuration
+      // Replace placeholders with real Firebase settings to connect to production Firebase Auth
+      const firebaseConfig = {
+        apiKey: "PLACEHOLDER_FIREBASE_API_KEY",
+        authDomain: "PLACEHOLDER_FIREBASE_AUTH_DOMAIN",
+        projectId: "PLACEHOLDER_FIREBASE_PROJECT_ID",
+        storageBucket: "PLACEHOLDER_FIREBASE_STORAGE_BUCKET",
+        messagingSenderId: "PLACEHOLDER_FIREBASE_MESSAGING_SENDER_ID",
+        appId: "PLACEHOLDER_FIREBASE_APP_ID"
+      };
+
+      const hasValidFirebaseConfig = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("PLACEHOLDER_");
+
+      if (hasValidFirebaseConfig) {
+        try {
+          firebase.initializeApp(firebaseConfig);
+          console.log("🟢 [Firebase Auth] Initialized production Firebase config.");
+        } catch (err) {
+          console.error("❌ [Firebase Auth] Initialization failed:", err);
+          isMockAuth = true;
+        }
+      } else {
+        console.warn("⚠️ [Firebase Auth] No credentials configured. Operating in MOCK Auth mode.");
+        isMockAuth = true;
+      }
+
+      // Fetch API wrapper to append JWT token to request headers
+      async function fetchWithAuth(url, options = {}) {
+        const headers = options.headers || {};
+        
+        let token = currentToken;
+        if (!token) {
+          // Default mock token for local testing / test runner bypass
+          token = 'mock-guest-token';
+        }
+        
+        headers['Authorization'] = `Bearer ${token}`;
+        
+        const finalOptions = {
+          ...options,
+          headers
+        };
+        
+        // Auto convert body to JSON string if it is an object
+        if (options.body && typeof options.body === 'object') {
+          headers['Content-Type'] = 'application/json';
+          finalOptions.body = JSON.stringify(options.body);
+        }
+
+        const res = await fetch(url, finalOptions);
+        if (res.status === 401) {
+          // Token expired or invalid, trigger sign in
+          openAuthModal();
+        }
+        return res;
+      }
+
+      // Initialize Authentication state changes
+      function initAuth() {
+        if (isMockAuth) {
+          const cachedUser = localStorage.getItem('mock_auth_user');
+          if (cachedUser) {
+            currentUser = JSON.parse(cachedUser);
+            currentToken = `mock-user-${currentUser.uid}`;
+            updateAuthUI(currentUser);
+          } else {
+            updateAuthUI(null);
+          }
+          if (typeof mapEngine !== 'undefined') mapEngine.loadAll();
+        } else {
+          firebase.auth().onAuthStateChanged(async (user) => {
+            if (user) {
+              currentUser = user;
+              currentToken = await user.getIdToken();
+              updateAuthUI(user);
+            } else {
+              currentUser = null;
+              currentToken = null;
+              updateAuthUI(null);
+            }
+            if (typeof mapEngine !== 'undefined') mapEngine.loadAll();
+          });
+        }
+      }
+
+      function updateAuthUI(user) {
+        const loggedOutDiv = document.getElementById('authLoggedOut');
+        const loggedInDiv = document.getElementById('authLoggedIn');
+        const userEmailDisplay = document.getElementById('userEmailDisplay');
+        const userAvatar = document.getElementById('userAvatar');
+
+        if (user) {
+          if (loggedOutDiv) loggedOutDiv.classList.add('hidden');
+          if (loggedInDiv) loggedInDiv.classList.remove('hidden');
+          if (userEmailDisplay) userEmailDisplay.innerText = user.email;
+          if (userAvatar) userAvatar.innerText = (user.email || 'U').substring(0, 1).toUpperCase();
+        } else {
+          if (loggedOutDiv) loggedOutDiv.classList.remove('hidden');
+          if (loggedInDiv) loggedInDiv.classList.add('hidden');
+        }
+      }
+
+      // Auth UI Handlers
+      function openAuthModal() {
+        const modal = document.getElementById('authModal');
+        if (modal) {
+          modal.classList.remove('pointer-events-none', 'opacity-0');
+          modal.classList.add('pointer-events-auto', 'opacity-100');
+          const card = modal.querySelector('.modal-card');
+          if (card) {
+            card.classList.remove('scale-95');
+            card.classList.add('scale-100');
+          }
+        }
+      }
+
+      function closeAuthModal() {
+        const modal = document.getElementById('authModal');
+        if (modal) {
+          modal.classList.remove('pointer-events-auto', 'opacity-100');
+          modal.classList.add('pointer-events-none', 'opacity-0');
+          const card = modal.querySelector('.modal-card');
+          if (card) {
+            card.classList.remove('scale-100');
+            card.classList.add('scale-95');
+          }
+        }
+      }
+
+      let currentAuthTab = 'login';
+      function switchAuthTab(tab) {
+        currentAuthTab = tab;
+        const btnLogin = document.getElementById('btnTabLogin');
+        const btnRegister = document.getElementById('btnTabRegister');
+        const submitText = document.getElementById('btnAuthSubmitText');
+        const modalTitle = document.getElementById('lblAuthModalTitle');
+
+        if (tab === 'login') {
+          if (btnLogin) btnLogin.style.backgroundColor = 'rgba(255,255,255,0.05)';
+          if (btnRegister) btnRegister.style.backgroundColor = 'transparent';
+          if (submitText) submitText.innerText = currentLang === 'ja' ? 'ログイン' : 'Sign In';
+          if (modalTitle) modalTitle.innerText = currentLang === 'ja' ? 'SIGN IN / ログイン' : 'SIGN IN / ログイン';
+        } else {
+          if (btnLogin) btnLogin.style.backgroundColor = 'transparent';
+          if (btnRegister) btnRegister.style.backgroundColor = 'rgba(255,255,255,0.05)';
+          if (submitText) submitText.innerText = currentLang === 'ja' ? '新規登録' : 'Register';
+          if (modalTitle) modalTitle.innerText = currentLang === 'ja' ? 'REGISTER / 新規登録' : 'REGISTER / 新規登録';
+        }
+      }
+
+      async function handleAuthSubmit(event) {
+        event.preventDefault();
+        const email = document.getElementById('authEmail').value.trim();
+        const password = document.getElementById('authPassword').value;
+        const errorDiv = document.getElementById('authErrorMsg');
+
+        if (errorDiv) errorDiv.classList.add('hidden');
+
+        if (isMockAuth) {
+          const uid = 'mock-' + email.replace(/[^a-zA-Z0-9]/g, '');
+          currentUser = { email, uid };
+          currentToken = `mock-user-${uid}`;
+          localStorage.setItem('mock_auth_user', JSON.stringify(currentUser));
+          updateAuthUI(currentUser);
+          closeAuthModal();
+          if (typeof mapEngine !== 'undefined') mapEngine.loadAll();
+        } else {
+          try {
+            if (currentAuthTab === 'login') {
+              await firebase.auth().signInWithEmailAndPassword(email, password);
+            } else {
+              await firebase.auth().createUserWithEmailAndPassword(email, password);
+            }
+            closeAuthModal();
+          } catch (err) {
+            console.error("❌ Auth submit failed:", err.message);
+            if (errorDiv) {
+              errorDiv.innerText = err.message;
+              errorDiv.classList.remove('hidden');
+            }
+          }
+        }
+      }
+
+      async function handleGoogleSignIn() {
+        const errorDiv = document.getElementById('authErrorMsg');
+        if (errorDiv) errorDiv.classList.add('hidden');
+
+        if (isMockAuth) {
+          currentUser = { email: 'mock.google@example.com', uid: 'mock-google-user-123' };
+          currentToken = `mock-user-google`;
+          localStorage.setItem('mock_auth_user', JSON.stringify(currentUser));
+          updateAuthUI(currentUser);
+          closeAuthModal();
+          if (typeof mapEngine !== 'undefined') mapEngine.loadAll();
+        } else {
+          try {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            await firebase.auth().signInWithPopup(provider);
+            closeAuthModal();
+          } catch (err) {
+            console.error("❌ Google Auth sign in failed:", err.message);
+            if (errorDiv) {
+              errorDiv.innerText = err.message;
+              errorDiv.classList.remove('hidden');
+            }
+          }
+        }
+      }
+
+      async function handleSignOut() {
+        if (isMockAuth) {
+          currentUser = null;
+          currentToken = null;
+          localStorage.removeItem('mock_auth_user');
+          updateAuthUI(null);
+          if (typeof mapEngine !== 'undefined') mapEngine.loadAll();
+        } else {
+          try {
+            await firebase.auth().signOut();
+          } catch (err) {
+            console.error("❌ Sign out failed:", err.message);
+          }
+        }
       }
 
       const isLocal = !window.google || !window.google.script;
@@ -1117,7 +1378,7 @@
         const toast = document.getElementById('headerStatusToast');
         btnExport.disabled = true;
 
-        fetch(`/api/getEngram?id=${activeEngramId}`)
+        fetchWithAuth(`/api/getEngram?id=${activeEngramId}`)
           .then(res => {
             if (!res.ok) throw new Error("Engram not found");
             return res.json();
@@ -1211,7 +1472,7 @@
         const linkField = document.getElementById('linkInput');
         
         // Fetch accurate engram data dynamically via getEngram to populate edit fields
-        fetch(`/api/getEngram?id=${activeEngramId}`)
+        fetchWithAuth(`/api/getEngram?id=${activeEngramId}`)
           .then(res => {
             if (!res.ok) throw new Error("Engram not found");
             return res.json();
@@ -1280,7 +1541,7 @@
         const btnSubmit = document.getElementById('btnSubmit');
         btnSubmit.disabled = true;
 
-        fetch('/api/forgetEngram', {
+        fetchWithAuth('/api/forgetEngram', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ db_id: activeEngramId })
@@ -1364,7 +1625,7 @@
         }
 
         if (isLocal) {
-          fetch(targetApi, {
+          fetchWithAuth(targetApi, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -1555,7 +1816,7 @@
 
         // Load all engrams and metabolise them into map layout
         loadAll() {
-          fetch('/api/getAllEngrams')
+          fetchWithAuth('/api/getAllEngrams')
             .then(res => res.json())
             .then(data => {
               this.buildNetwork(data);
@@ -2579,7 +2840,7 @@
           document.getElementById('loader').classList.remove('hidden');
           document.getElementById('resultContainer').classList.add('hidden');
           
-          fetch(`/api/getEngram?id=${node.id}`)
+          fetchWithAuth(`/api/getEngram?id=${node.id}`)
             .then(res => res.json())
             .then(data => {
               document.getElementById('loader').classList.add('hidden');
@@ -2685,7 +2946,7 @@
 
         const currentData = window.__currentEngramData__;
 
-        fetch(`/api/getEngram?id=${engramId}`)
+        fetchWithAuth(`/api/getEngram?id=${engramId}`)
           .then(res => res.json())
           .then(data => {
             loader.classList.add('hidden');
@@ -2708,7 +2969,7 @@
         document.getElementById('loader').classList.remove('hidden');
         document.getElementById('resultContainer').classList.add('hidden');
 
-        fetch(`/api/search?query=${encodeURIComponent(query)}&lang=${currentLang}`)
+        fetchWithAuth(`/api/search?query=${encodeURIComponent(query)}&lang=${currentLang}`)
           .then(res => res.json())
           .then(data => {
             document.getElementById('loader').classList.add('hidden');
@@ -2737,5 +2998,68 @@
       const mapEngine = new SemanticMapEngine('memoryMapCanvas');
       mapEngine.loadAll();
     </script>
+
+    <!-- Auth Modal (Google & Email Registration / Sign In) -->
+    <div id="authModal" class="fixed inset-0 z-50 flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-300" style="background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px);">
+      <div class="modal-card w-80 p-6 rounded-2xl border shadow-2xl transition-all duration-300 transform scale-95 pointer-events-auto" style="background-color: var(--card-bg); border-color: var(--border-color); color: var(--text-main);">
+        <!-- Modal Header -->
+        <div class="flex items-center justify-between mb-4 pb-2 border-b border-dashed" style="border-color: var(--border-color);">
+          <span id="lblAuthModalTitle" class="font-semibold tracking-widest uppercase text-xxs">SIGN IN / ログイン</span>
+          <button onclick="closeAuthModal()" class="opacity-50 hover:opacity-100 transition-opacity focus:outline-none">
+            <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Mode Toggle (Login vs Register) -->
+        <div class="flex rounded-lg overflow-hidden border mb-4 text-xxs" style="border-color: var(--border-color);">
+          <button id="btnTabLogin" onclick="switchAuthTab('login')" class="flex-1 py-1.5 text-center focus:outline-none transition-colors duration-200" style="background-color: rgba(255,255,255,0.05);">SIGN IN</button>
+          <button id="btnTabRegister" onclick="switchAuthTab('register')" class="flex-1 py-1.5 text-center focus:outline-none transition-colors duration-200">REGISTER</button>
+        </div>
+
+        <!-- Auth Form -->
+        <form id="authForm" onsubmit="handleAuthSubmit(event)" class="space-y-3">
+          <!-- Email Input -->
+          <div class="space-y-1">
+            <label class="block text-xxs tracking-wider opacity-75">EMAIL / メールアドレス</label>
+            <input type="email" id="authEmail" required class="w-full px-3 py-1.5 rounded-lg border focus:outline-none text-xs" style="background-color: var(--input-bg); border-color: var(--border-color); color: var(--text-main);" />
+          </div>
+          
+          <!-- Password Input -->
+          <div class="space-y-1">
+            <label class="block text-xxs tracking-wider opacity-75">PASSWORD / パスワード</label>
+            <input type="password" id="authPassword" required minlength="6" class="w-full px-3 py-1.5 rounded-lg border focus:outline-none text-xs" style="background-color: var(--input-bg); border-color: var(--border-color); color: var(--text-main);" />
+          </div>
+
+          <!-- Error Message -->
+          <div id="authErrorMsg" class="text-xxs text-red-400 hidden leading-normal"></div>
+
+          <!-- Submit Button -->
+          <button type="submit" class="w-full py-2 rounded-lg text-center font-medium text-xs transition-all duration-300 hover:scale-102 flex items-center justify-center" style="background-color: var(--btn-bg); color: var(--btn-text);">
+            <span id="btnAuthSubmitText">Sign In / ログイン</span>
+          </button>
+        </form>
+
+        <!-- Divider -->
+        <div class="flex items-center my-3">
+          <div class="flex-1 border-t" style="border-color: var(--border-color);"></div>
+          <span class="px-2 text-xxs opacity-40">OR</span>
+          <div class="flex-1 border-t" style="border-color: var(--border-color);"></div>
+        </div>
+
+        <!-- Google Log In Button -->
+        <button onclick="handleGoogleSignIn()" class="w-full py-2 rounded-lg border text-center font-medium text-xs transition-all duration-300 hover:scale-102 flex items-center justify-center space-x-2" style="border-color: var(--border-color); background-color: rgba(255,255,255,0.02);">
+          <!-- Google Icon -->
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+          </svg>
+          <span style="color: var(--text-main);">Googleでログイン</span>
+        </button>
+      </div>
+    </div>
   </body>
 </html>
