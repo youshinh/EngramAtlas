@@ -1010,6 +1010,46 @@
       applyTranslations();
       updateSettingsUI();
 
+      // Paste image from clipboard to noiseInput text area
+      const noiseInput = document.getElementById('noiseInput');
+      if (noiseInput) {
+        noiseInput.addEventListener('paste', (event) => {
+          const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+          for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (item.kind === 'file' && item.type.startsWith('image/')) {
+              const file = item.getAsFile();
+              if (file) {
+                event.preventDefault(); // Prevent pasting binary text garbage
+                
+                const timestamp = Date.now();
+                const fileExtension = file.type.split('/')[1] || 'png';
+                const mockFileName = `pasted_image_${timestamp}.${fileExtension}`;
+                
+                selectedFileName = mockFileName;
+                selectedFileMime = file.type;
+                
+                const previewContainer = document.getElementById('mediaPreviewContainer');
+                const nameDisplay = document.getElementById('fileNameDisplay');
+                const mediaIcon = document.getElementById('previewMediaTypeIcon');
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                  const base64Data = e.target.result.split(',')[1];
+                  selectedFileBase64 = base64Data;
+                  
+                  if (mediaIcon) mediaIcon.innerHTML = '📷';
+                  if (nameDisplay) nameDisplay.innerText = mockFileName + " (Clipboard)";
+                  if (previewContainer) previewContainer.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+                break;
+              }
+            }
+          }
+        });
+      }
+
       const isLocal = !window.google || !window.google.script;
 
       let selectedFileBase64 = null;
