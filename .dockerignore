@@ -6,3 +6,6 @@ eval
 specs
 .antigravity
 *.log
+*.txt
+scratch/
+

@@ -56,25 +56,51 @@ function cosineSimilarity(vecA, vecB) {
   return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
+// Each character (0-255) has a pre-defined deterministic random-like vector to build Bag-of-Characters embeddings
+const charVectors = [];
+for (let c = 0; c < 256; c++) {
+  let seed = c ^ 0x55555555;
+  const vec = [];
+  let a = seed, b = seed ^ 0xDEADBEEF, c_val = seed ^ 0xCAFEBABE, d = seed ^ 0x8BADF00D;
+  function rand() {
+    a >>>= 0; b >>>= 0; c_val >>>= 0; d >>>= 0;
+    let t = (a + b) | 0;
+    a = b ^ (b >>> 9);
+    b = (c_val + (c_val << 3)) | 0;
+    c_val = (c_val << 21) | (c_val >>> 11);
+    d = (d + 1) | 0;
+    t = (t + d) | 0;
+    c_val = (c_val + t) | 0;
+    return (t >>> 0) / 4294967296;
+  }
+  for (let i = 0; i < 3072; i++) {
+    vec.push(rand() * 2 - 1);
+  }
+  charVectors.push(vec);
+}
+
 // Highly Intelligent Deterministic Mock Embedding generator (3,072 dimensions)
 function getMockEmbedding(text) {
-  const vector = [];
-  const textLen = text.length || 1;
+  const cleanText = text || "empty";
+  const finalVec = new Array(3072).fill(0);
   
-  const charCounts = new Array(256).fill(0);
-  for (let i = 0; i < text.length; i++) {
-    const code = text.charCodeAt(i) % 256;
-    charCounts[code]++;
+  for (let i = 0; i < cleanText.length; i++) {
+    const code = cleanText.charCodeAt(i) % 256;
+    const charVec = charVectors[code];
+    for (let j = 0; j < 3072; j++) {
+      finalVec[j] += charVec[j];
+    }
   }
   
-  for (let i = 0; i < 3072; i++) {
-    const baseWave = Math.sin(i * 0.05) * 0.04;
-    const charIndex = i % 256;
-    const count = charCounts[charIndex];
-    const semanticWeight = (count / textLen) * Math.cos(i + charIndex) * 0.08;
-    vector.push(baseWave + semanticWeight);
+  let sumSq = 0;
+  for (let j = 0; j < 3072; j++) {
+    sumSq += finalVec[j] * finalVec[j];
   }
-  return vector;
+  const norm = Math.sqrt(sumSq);
+  for (let j = 0; j < 3072; j++) {
+    finalVec[j] /= (norm || 1);
+  }
+  return finalVec;
 }
 
 // Pre-populate mock database with initial beautiful engrams to prevent empty canvas
@@ -761,57 +787,67 @@ app.post('/api/sendNoise', async (req, res) => {
 
         // Optimized live similarity threshold to 0.55 for real embeddings
         const similarityThreshold = 0.55;
+        const candidates = [];
 
         for (const past of pastEngrams) {
           const score = cosineSimilarity(embedding, past.vector_embeddings);
           if (score >= similarityThreshold) {
-            console.log(`🔗 [Match Found] ID: ${past._id}, Score: ${score.toFixed(4)}`);
-            
-            // Generate connection reason
-            const reason = await generateReasonOfConnection(userInput, past.content, currentLang, apiKey);
-            
-            const newLinkForCurrent = {
-              to_engram_id: past._id.toString(),
-              strength: score,
-              reason_of_connection: reason
-            };
-            matchedRelations.push(newLinkForCurrent);
-
-            // Update current doc
-            await engramsCollection.updateOne(
-              { _id: newEngram._id },
-              { 
-                $push: { 
-                  related_links: newLinkForCurrent,
-                  evolution_history: {
-                    timestamp: new Date(),
-                    action: "self_organize_link",
-                    comment: `Connected to ${past._id.toString()} with similarity ${score.toFixed(2)}`
-                  }
-                }
-              }
-            );
-
-            // Update past doc
-            const newLinkForPast = {
-              to_engram_id: dbResultId,
-              strength: score,
-              reason_of_connection: reason
-            };
-            await engramsCollection.updateOne(
-              { _id: past._id },
-              { 
-                $push: { 
-                  related_links: newLinkForPast,
-                  evolution_history: {
-                    timestamp: new Date(),
-                    action: "self_organize_link",
-                    comment: `Connected to newly created ${dbResultId} with similarity ${score.toFixed(2)}`
-                  }
-                }
-              }
-            );
+            candidates.push({ past, score });
           }
+        }
+
+        // Sort by similarity score descending and limit to top 5
+        candidates.sort((a, b) => b.score - a.score);
+        const topCandidates = candidates.slice(0, 5);
+
+        for (const candidate of topCandidates) {
+          const { past, score } = candidate;
+          console.log(`🔗 [Match Found] ID: ${past._id}, Score: ${score.toFixed(4)}`);
+          
+          // Generate connection reason
+          const reason = await generateReasonOfConnection(userInput, past.content, currentLang, apiKey);
+          
+          const newLinkForCurrent = {
+            to_engram_id: past._id.toString(),
+            strength: score,
+            reason_of_connection: reason
+          };
+          matchedRelations.push(newLinkForCurrent);
+
+          // Update current doc
+          await engramsCollection.updateOne(
+            { _id: newEngram._id },
+            { 
+              $push: { 
+                related_links: newLinkForCurrent,
+                evolution_history: {
+                  timestamp: new Date(),
+                  action: "self_organize_link",
+                  comment: `Connected to ${past._id.toString()} with similarity ${score.toFixed(2)}`
+                }
+              }
+            }
+          );
+
+          // Update past doc
+          const newLinkForPast = {
+            to_engram_id: dbResultId,
+            strength: score,
+            reason_of_connection: reason
+          };
+          await engramsCollection.updateOne(
+            { _id: past._id },
+            { 
+              $push: { 
+                related_links: newLinkForPast,
+                evolution_history: {
+                  timestamp: new Date(),
+                  action: "self_organize_link",
+                  comment: `Connected to newly created ${dbResultId} with similarity ${score.toFixed(2)}`
+                }
+              }
+            }
+          );
         }
       }
     }, 3, 500, currentLang, (attempt, type, msg) => {
@@ -832,39 +868,50 @@ app.post('/api/sendNoise', async (req, res) => {
 
     const similarityThreshold = 0.55; // 0.55 for mock too for consistency
 
+    const candidates = [];
+
     // Perform Similarity Search on in-memory collection
     for (const past of mockEngrams) {
       const score = cosineSimilarity(embedding, past.vector_embeddings);
       if (score >= similarityThreshold) {
-        console.log(`🔗 [Mock Match Found] ID: ${past._id}, Score: ${score.toFixed(4)}`);
-
-        const reason = await generateReasonOfConnection(userInput, past.content, currentLang, apiKey);
-        
-        const newLinkForCurrent = {
-          to_engram_id: past._id,
-          strength: score,
-          reason_of_connection: reason
-        };
-        matchedRelations.push(newLinkForCurrent);
-        newEngram.related_links.push(newLinkForCurrent);
-        
-        newEngram.evolution_history.push({
-          timestamp: new Date(),
-          action: "self_organize_link",
-          comment: `Mock connected to ${past._id} with similarity ${score.toFixed(2)}`
-        });
-
-        past.related_links.push({
-          to_engram_id: mockId,
-          strength: score,
-          reason_of_connection: reason
-        });
-        past.evolution_history.push({
-          timestamp: new Date(),
-          action: "self_organize_link",
-          comment: `Mock connected to newly created ${mockId} with similarity ${score.toFixed(2)}`
-        });
+        candidates.push({ past, score });
       }
+    }
+
+    // Sort by similarity score descending and limit to top 5
+    candidates.sort((a, b) => b.score - a.score);
+    const topCandidates = candidates.slice(0, 5);
+
+    for (const candidate of topCandidates) {
+      const { past, score } = candidate;
+      console.log(`🔗 [Mock Match Found] ID: ${past._id}, Score: ${score.toFixed(4)}`);
+
+      const reason = await generateReasonOfConnection(userInput, past.content, currentLang, apiKey);
+      
+      const newLinkForCurrent = {
+        to_engram_id: past._id,
+        strength: score,
+        reason_of_connection: reason
+      };
+      matchedRelations.push(newLinkForCurrent);
+      newEngram.related_links.push(newLinkForCurrent);
+      
+      newEngram.evolution_history.push({
+        timestamp: new Date(),
+        action: "self_organize_link",
+        comment: `Mock connected to ${past._id} with similarity ${score.toFixed(2)}`
+      });
+
+      past.related_links.push({
+        to_engram_id: mockId,
+        strength: score,
+        reason_of_connection: reason
+      });
+      past.evolution_history.push({
+        timestamp: new Date(),
+        action: "self_organize_link",
+        comment: `Mock connected to newly created ${mockId} with similarity ${score.toFixed(2)}`
+      });
     }
 
     mockEngrams.push(newEngram);
@@ -1314,54 +1361,64 @@ app.post('/api/updateEngram', async (req, res) => {
 
         const similarityThreshold = 0.55;
         const matchedRelations = [];
+        const candidates = [];
 
         for (const past of pastEngrams) {
           const score = cosineSimilarity(embedding, past.vector_embeddings);
           if (score >= similarityThreshold) {
-            const reason = await generateReasonOfConnection(userInput, past.content, currentLang, apiKey);
-            
-            const newLinkForCurrent = {
-              to_engram_id: past._id.toString(),
-              strength: score,
-              reason_of_connection: reason
-            };
-            matchedRelations.push(newLinkForCurrent);
-
-            // 自分側に追加
-            await engramsCollection.updateOne(
-              { _id: objId },
-              { 
-                $push: { 
-                  related_links: newLinkForCurrent,
-                  evolution_history: {
-                    timestamp: new Date(),
-                    action: "self_organize_link",
-                    comment: `Connected to ${past._id.toString()} during refine with similarity ${score.toFixed(2)}`
-                  }
-                }
-              }
-            );
-
-            // 相手側にも追加
-            const newLinkForPast = {
-              to_engram_id: db_id,
-              strength: score,
-              reason_of_connection: reason
-            };
-            await engramsCollection.updateOne(
-              { _id: past._id },
-              { 
-                $push: { 
-                  related_links: newLinkForPast,
-                  evolution_history: {
-                    timestamp: new Date(),
-                    action: "self_organize_link",
-                    comment: `Connected to refined ${db_id} with similarity ${score.toFixed(2)}`
-                  }
-                }
-              }
-            );
+            candidates.push({ past, score });
           }
+        }
+
+        // Sort by similarity score descending and limit to top 5
+        candidates.sort((a, b) => b.score - a.score);
+        const topCandidates = candidates.slice(0, 5);
+
+        for (const candidate of topCandidates) {
+          const { past, score } = candidate;
+          const reason = await generateReasonOfConnection(userInput, past.content, currentLang, apiKey);
+          
+          const newLinkForCurrent = {
+            to_engram_id: past._id.toString(),
+            strength: score,
+            reason_of_connection: reason
+          };
+          matchedRelations.push(newLinkForCurrent);
+
+          // 自分側に追加
+          await engramsCollection.updateOne(
+            { _id: objId },
+            { 
+              $push: { 
+                related_links: newLinkForCurrent,
+                evolution_history: {
+                  timestamp: new Date(),
+                  action: "self_organize_link",
+                  comment: `Connected to ${past._id.toString()} during refine with similarity ${score.toFixed(2)}`
+                }
+              }
+            }
+          );
+
+          // 相手側にも追加
+          const newLinkForPast = {
+            to_engram_id: db_id,
+            strength: score,
+            reason_of_connection: reason
+          };
+          await engramsCollection.updateOne(
+            { _id: past._id },
+            { 
+              $push: { 
+                related_links: newLinkForPast,
+                evolution_history: {
+                  timestamp: new Date(),
+                  action: "self_organize_link",
+                  comment: `Connected to refined ${db_id} with similarity ${score.toFixed(2)}`
+                }
+              }
+            }
+          );
         }
 
         // d. 思考プロセスの生成（sendNoise と同様）
@@ -1440,38 +1497,48 @@ app.post('/api/updateEngram', async (req, res) => {
       // c. 再結線
       const similarityThreshold = 0.55;
       const matchedRelations = [];
+      const candidates = [];
 
       for (const past of mockEngrams) {
         if (past._id === db_id) continue;
         const score = cosineSimilarity(embedding, past.vector_embeddings);
         if (score >= similarityThreshold) {
-          const reason = await generateReasonOfConnection(userInput, past.content, currentLang, apiKey);
-          
-          const newLinkForCurrent = {
-            to_engram_id: past._id,
-            strength: score,
-            reason_of_connection: reason
-          };
-          matchedRelations.push(newLinkForCurrent);
-          engram.related_links.push(newLinkForCurrent);
-          
-          engram.evolution_history.push({
-            timestamp: new Date(),
-            action: "self_organize_link",
-            comment: `Connected to ${past._id} during mock refine with similarity ${score.toFixed(2)}`
-          });
-
-          past.related_links.push({
-            to_engram_id: db_id,
-            strength: score,
-            reason_of_connection: reason
-          });
-          past.evolution_history.push({
-            timestamp: new Date(),
-            action: "self_organize_link",
-            comment: `Connected to mock refined ${db_id} with similarity ${score.toFixed(2)}`
-          });
+          candidates.push({ past, score });
         }
+      }
+
+      // Sort by similarity score descending and limit to top 5
+      candidates.sort((a, b) => b.score - a.score);
+      const topCandidates = candidates.slice(0, 5);
+
+      for (const candidate of topCandidates) {
+        const { past, score } = candidate;
+        const reason = await generateReasonOfConnection(userInput, past.content, currentLang, apiKey);
+        
+        const newLinkForCurrent = {
+          to_engram_id: past._id,
+          strength: score,
+          reason_of_connection: reason
+        };
+        matchedRelations.push(newLinkForCurrent);
+        engram.related_links.push(newLinkForCurrent);
+        
+        engram.evolution_history.push({
+          timestamp: new Date(),
+          action: "self_organize_link",
+          comment: `Connected to ${past._id} during mock refine with similarity ${score.toFixed(2)}`
+        });
+
+        past.related_links.push({
+          to_engram_id: db_id,
+          strength: score,
+          reason_of_connection: reason
+        });
+        past.evolution_history.push({
+          timestamp: new Date(),
+          action: "self_organize_link",
+          comment: `Connected to mock refined ${db_id} with similarity ${score.toFixed(2)}`
+        });
       }
 
       const agentResponse = currentLang === 'ja'
@@ -1650,10 +1717,34 @@ app.get('/api/getAllEngrams', async (req, res) => {
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`\n🚀 ===================================================`);
   console.log(`🧬 EngramAtlas Local Development Server`);
   console.log(`🔗 URL: http://localhost:3000/`);
   console.log(`📂 Working Dir: ${__dirname}`);
   console.log(`=====================================================\n`);
+
+  // 🧪 Gemini API Connectivity Test (事前確認)
+  const apiKey = process.env.GEMINI_API_KEY;
+  const embedModel = process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2-preview';
+  console.log("🔍 [Gemini API Connect Test] Testing connectivity with Gemini Embedding API...");
+  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
+    console.warn("⚠️ [Gemini API Connect Test] No valid GEMINI_API_KEY detected in env. Fallback to Mock Embeddings.");
+  } else {
+    try {
+      const { GoogleGenAI } = require('@google/genai');
+      const ai = new GoogleGenAI({ apiKey });
+      const testResponse = await ai.models.embedContent({
+        model: embedModel,
+        contents: "healthcheck"
+      });
+      if (testResponse && testResponse.embeddings && testResponse.embeddings[0] && testResponse.embeddings[0].values) {
+        console.log(`🟢 [Gemini API Connect Test] Connection success! Generated vector dimensions: ${testResponse.embeddings[0].values.length} using ${embedModel}`);
+      } else {
+        console.warn("⚠️ [Gemini API Connect Test] API responded but output format was unexpected. Fallback to Mock Embeddings.");
+      }
+    } catch (err) {
+      console.error(`❌ [Gemini API Connect Test] Connection failed: ${err.message}. Fallback to Mock Embeddings.`);
+    }
+  }
 });

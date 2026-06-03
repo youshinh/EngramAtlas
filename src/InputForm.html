@@ -11,17 +11,31 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
       :root {
-        --bg-color: #f7f7f9;
-        --card-bg: rgba(255, 255, 255, 0.7);
-        --text-main: #2d3748;
-        --text-sub: #718096;
-        --border-color: rgba(226, 232, 240, 0.8);
-        --input-bg: rgba(255, 255, 255, 0.9);
-        --circle-bg: rgba(0, 0, 0, 0.03);
-        --btn-bg: #2d3748;
+        --bg-color: #eaecef; /* Softer, slightly darker background to reduce glare */
+        --card-bg: rgba(255, 255, 255, 0.8); /* Slightly higher opacity for readability */
+        --text-main: #0f172a; /* Slate 950 for clear high contrast */
+        --text-sub: #475569; /* Slate 600 for clear high contrast */
+        --border-color: rgba(148, 163, 184, 0.45); /* Clearer border */
+        --input-bg: rgba(255, 255, 255, 0.95);
+        --circle-bg: rgba(0, 0, 0, 0.04);
+        --btn-bg: #0f172a;
         --btn-text: #ffffff;
-        --btn-hover: #1a202c;
-        --result-bg: rgba(255, 255, 255, 0.6);
+        --btn-hover: #1e293b;
+        --result-bg: rgba(255, 255, 255, 0.85);
+      }
+
+      /* Global placeholder style for high readability contrast */
+      ::placeholder {
+        color: var(--text-sub) !important;
+        opacity: 0.75 !important;
+      }
+      :-ms-input-placeholder {
+        color: var(--text-sub) !important;
+        opacity: 0.75 !important;
+      }
+      ::-ms-input-placeholder {
+        color: var(--text-sub) !important;
+        opacity: 0.75 !important;
       }
 
       /* Dark mode overrides */
@@ -401,7 +415,7 @@
         <!-- Unified Premium Chat Input Box -->
         <div class="w-full rounded-2xl border flex flex-col focus-within:ring-1 focus-within:ring-current overflow-hidden transition-all duration-300" style="background-color: var(--input-bg); border-color: var(--border-color);">
           <!-- Textarea -->
-          <textarea id="noiseInput" class="w-full h-32 p-4 bg-transparent border-none focus:outline-none focus:ring-0 text-sm leading-relaxed placeholder-gray-400" placeholder="e.g., From the perspective of life science, the cell membrane that separates the inside and outside of a cell is not merely a static boundary, but functions as a dynamic 'in-between' where substances and information are continuously exchanged."></textarea>
+          <textarea id="noiseInput" class="w-full h-32 p-4 bg-transparent border-none focus:outline-none focus:ring-0 text-sm leading-relaxed" placeholder="e.g., From the perspective of life science, the cell membrane that separates the inside and outside of a cell is not merely a static boundary, but functions as a dynamic 'in-between' where substances and information are continuously exchanged."></textarea>
           
           <!-- Web Link Input Box (Expandable) -->
           <div id="linkInputWrapper" class="hidden px-4 pb-3">
@@ -411,7 +425,7 @@
                   <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"></path>
                 </svg>
               </span>
-              <input type="url" id="linkInput" class="w-full pl-9 pr-4 py-2 rounded-xl minimal-input text-xs tracking-widest placeholder-gray-400" placeholder="Web Link (URL)">
+              <input type="url" id="linkInput" class="w-full pl-9 pr-4 py-2 rounded-xl minimal-input text-xs tracking-widest" placeholder="Web Link (URL)">
             </div>
           </div>
 
@@ -571,12 +585,12 @@
           </div>
 
           <!-- Elegant Interactive Canvas container -->
-          <div class="relative w-full rounded-2xl overflow-hidden border" style="border-color: var(--border-color); background-color: var(--input-bg);">
+          <div class="relative w-full rounded-2xl overflow-hidden border" style="border-color: var(--border-color); background-color: #000000;">
             <canvas id="memoryMapCanvas" width="448" height="480" class="w-full block cursor-grab active:cursor-grabbing" style="min-height: 300px;"></canvas>
             
             <!-- Elegant alignment tools inside canvas -->
             <div class="absolute bottom-3 right-3 flex space-x-1.5 opacity-80 hover:opacity-100 transition-opacity duration-300">
-              <button onclick="mapEngine.resetPositions()" id="btnMapAlign" class="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xxs tracking-widest transition-all border duration-300 font-medium hover:scale-102" style="background-color: var(--input-bg); border-color: var(--border-color); color: var(--text-main); font-size: 0.6rem; font-family: 'Playfair Display', 'Noto Serif JP', serif;">
+              <button onclick="mapEngine.resetPositions()" id="btnMapAlign" class="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xxs tracking-widest transition-all border duration-300 font-medium hover:scale-102" style="background-color: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.15); color: #f1f5f9; font-size: 0.6rem; font-family: 'Playfair Display', 'Noto Serif JP', serif;">
                 <!-- Tiny minimalist reload/arrows icon -->
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3 w-3 stroke-current">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
@@ -588,12 +602,7 @@
         </div>
       </div>
 
-      <!-- Footer Info -->
-      <div class="text-center mt-8 pt-4 border-t" style="border-color: var(--border-color);">
-        <p id="uiFooterText" class="text-xs font-light tracking-widest" style="color: var(--text-sub);">
-          ※ Memory as a convention of relationship. Dynamic equilibrium in perpetual flux.
-        </p>
-      </div>
+
 
     </div>
 
@@ -612,7 +621,6 @@
           btnSubmit: "Release",
           loader: "Quietly weaving relationships...",
           resultTitle: "Cognitive Path & Emergent Results",
-          footer: "※ Memory as a convention of relationship. Dynamic equilibrium in perpetual flux.",
           langToggle: "Ja",
           themeDark: "DARK MODE",
           themeLight: "LIGHT MODE",
@@ -632,7 +640,7 @@
           refinedSuccess: "Refined successfully",
           copied: "Copied context successfully",
           mapTitle: "Semantic Memory Space",
-          mapHelp: "Drag nodes to explore resonance.",
+          mapHelp: "Drag to explore. Long-press or tap again to load details.",
           btnMapAlign: "RESET",
           searchPlaceholder: "Search semantic meaning..."
         },
@@ -642,7 +650,6 @@
           btnSubmit: "リリース",
           loader: "関係性を静かに紡いています...",
           resultTitle: "思考の軌道と創発結果",
-          footer: "※関係性の規約としての記憶。絶え間なく移り変わる動的平衡。",
           langToggle: "En",
           themeDark: "ダークモード",
           themeLight: "ライトモード",
@@ -662,7 +669,7 @@
           refinedSuccess: "記憶が美しく推敲されました",
           copied: "LLM用文脈をコピーしました",
           mapTitle: "記憶共鳴空間",
-          mapHelp: "ノードをドラッグして関係性を探求",
+          mapHelp: "ドラッグで探索、長押しまたは再タップで詳細を表示",
           btnMapAlign: "初期配置",
           searchPlaceholder: "意味で記憶を検索..."
         }
@@ -734,7 +741,6 @@
         
         document.getElementById('uiLoaderText').innerText = t.loader;
         document.getElementById('uiResultTitle').innerHTML = t.resultTitle;
-        document.getElementById('uiFooterText').innerText = t.footer;
         
         document.getElementById('langToggleText').innerText = t.langToggle;
         
@@ -1232,6 +1238,8 @@
           this.links = [];
           this.draggedNode = null;
           this.hoveredNode = null;
+          this.lastTapTime = 0; // For mobile double-tap detail load detection
+          this.longPressTimeout = null; // For mobile long-press detail load detection
           
           // Setup High-DPI Resolution & Responsiveness
           this.setupDpr();
@@ -1255,6 +1263,28 @@
           this.lastMouseX = 0;
           this.lastMouseY = 0;
           this.lastTouchDist = 0; // For pinch-to-zoom
+          
+          // Generate background 3D stars for deep space aesthetics (dusty micro-stars in Aurora tints)
+          this.backgroundStars = [];
+          for (let i = 0; i < 300; i++) {
+            // Emerald mint, turquoise cyan, or clean white tints
+            let colorStr = "rgba(255, 255, 255, ";
+            const rand = Math.random();
+            if (rand > 0.7) {
+              colorStr = "rgba(167, 243, 208, "; // Emerald Mint
+            } else if (rand > 0.4) {
+              colorStr = "rgba(165, 243, 252, "; // Turquoise Cyan
+            }
+            this.backgroundStars.push({
+              x: Math.random() * 1000 - 500,
+              y: Math.random() * 1000 - 500,
+              z: Math.random() * 1000 - 500,
+              size: Math.random() * 0.5 + 0.2, // 0.2px ~ 0.7px
+              twinklePhase: Math.random() * Math.PI * 2,
+              twinkleSpeed: Math.random() * 1.2 + 0.3, // Slower, natural breath
+              color: colorStr
+            });
+          }
           
           this.initEvents();
           this.startSimulation();
@@ -1349,6 +1379,11 @@
             let text = cleanText;
             if (text.length > 25) text = text.substring(0, 22) + "...";
             
+            // Calculate mass (Gravity property)
+            const mass = e.related_links ? e.related_links.length : 0;
+            const baseRadius = id === activeEngramId ? 18 : 12;
+            const radius = Math.min(baseRadius + (mass * 2.5), 45); // Max radius cap
+            
             this.nodes.push({
               id: id,
               text: text,
@@ -1359,7 +1394,8 @@
               vx: 0,
               vy: 0,
               vz: 0,
-              radius: id === activeEngramId ? 18 : 12,
+              radius: radius,
+              mass: mass,
               model: e.metadata && e.metadata.model || "",
               tags: e.metadata && e.metadata.tags || []
             });
@@ -1496,21 +1532,28 @@
               const dz = nB.z - nA.z;
               const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
               
-              if (dist < 200) {
+              // Scale collision boundary by combined radii
+              const combinedRadius = nA.radius + nB.radius;
+              if (dist < 150 + combinedRadius) {
                 const force = this.repulsionConstant / (dist * dist);
                 const fx = (dx / dist) * force;
                 const fy = (dy / dist) * force;
                 const fz = (dz / dist) * force;
                 
+                // Inertia: heavier objects move less
+                const massA = nA.mass + 1;
+                const massB = nB.mass + 1;
+                const totalMass = massA + massB;
+                
                 if (nA !== this.draggedNode) {
-                  nA.vx -= fx;
-                  nA.vy -= fy;
-                  nA.vz -= fz;
+                  nA.vx -= fx * (massB / totalMass);
+                  nA.vy -= fy * (massB / totalMass);
+                  nA.vz -= fz * (massB / totalMass);
                 }
                 if (nB !== this.draggedNode) {
-                  nB.vx += fx;
-                  nB.vy += fy;
-                  nB.vz += fz;
+                  nB.vx += fx * (massA / totalMass);
+                  nB.vy += fy * (massA / totalMass);
+                  nB.vz += fz * (massA / totalMass);
                 }
               }
             }
@@ -1527,22 +1570,28 @@
             const dz = nB.z - nA.z;
             const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
             
-            // Rest length of spring is proportional to inverse similarity
-            const restLength = 100 * (1 - l.strength * 0.5); 
+            // Rest length of spring is proportional to inverse similarity + sum of radii
+            const combinedRadius = nA.radius + nB.radius;
+            const restLength = Math.max(combinedRadius + 15, 100 * (1 - l.strength * 0.5)); 
             const force = 0.03 * (dist - restLength);
             const fx = (dx / dist) * force;
             const fy = (dy / dist) * force;
             const fz = (dz / dist) * force;
             
+            // Inertia based on mass
+            const massA = nA.mass + 1;
+            const massB = nB.mass + 1;
+            const totalMass = massA + massB;
+
             if (nA !== this.draggedNode) {
-              nA.vx += fx;
-              nA.vy += fy;
-              nA.vz += fz;
+              nA.vx += fx * (massB / totalMass);
+              nA.vy += fy * (massB / totalMass);
+              nA.vz += fz * (massB / totalMass);
             }
             if (nB !== this.draggedNode) {
-              nB.vx -= fx;
-              nB.vy -= fy;
-              nB.vz -= fz;
+              nB.vx -= fx * (massA / totalMass);
+              nB.vy -= fy * (massA / totalMass);
+              nB.vz -= fz * (massA / totalMass);
             }
           });
           
@@ -1567,12 +1616,13 @@
         }
 
         draw() {
-          this.ctx.clearRect(0, 0, this.width, this.height);
-          
           if (this.nodes.length === 0) {
+            this.ctx.fillStyle = "#000000";
+            this.ctx.fillRect(0, 0, this.width, this.height);
+            
             // Draw premium quiet placeholder text when empty
             this.ctx.save();
-            this.ctx.fillStyle = document.body.classList.contains('dark-theme') ? "rgba(255, 255, 255, 0.25)" : "rgba(0, 0, 0, 0.25)";
+            this.ctx.fillStyle = "rgba(255, 255, 255, 0.35)"; // Always light text on black space
             this.ctx.font = "italic 300 11px 'Playfair Display', 'Noto Serif JP', serif";
             this.ctx.textAlign = "center";
             this.ctx.textBaseline = "middle";
@@ -1590,7 +1640,7 @@
           const centerX = this.width / 2;
           const centerY = this.height / 2;
           const focus = 300; // Focal distance for 3D Perspective projection
-          const isDark = document.body.classList.contains('dark-theme');
+          const time = Date.now() * 0.001;
           
           // Project 3D coordinate with camera rotation, pan and zoom
           const project = (x, y, z) => {
@@ -1612,38 +1662,104 @@
             let z2 = z1 * cosX + ry * sinX;
             
             // 3. Perspective project & apply Zoom
-            const scale = (focus / (focus + z2)) * this.zoom;
+            const zDist = focus + z2;
+            if (zDist <= 10) {
+              return { x: 0, y: 0, scale: 0, z2: z2, visible: false };
+            }
+            const scale = (focus / zDist) * this.zoom;
             
             // 4. Translate back to center and apply Pan
             return {
               x: centerX + x1 * scale + this.panX,
               y: centerY + y2 * scale + this.panY,
               scale: scale,
-              z2: z2
+              z2: z2,
+              visible: true
             };
           };
 
+          // Background is always solid black to create deep space contrast
+          this.ctx.fillStyle = "#000000";
+          this.ctx.fillRect(0, 0, this.width, this.height);
+
+          // Draw Space Parallax Starfield
+          if (this.backgroundStars) {
+            this.ctx.save();
+            this.backgroundStars.forEach(star => {
+              const proj = project(centerX + star.x, centerY + star.y, star.z);
+              if (proj.visible && proj.scale > 0 && proj.x >= 0 && proj.x <= this.width && proj.y >= 0 && proj.y <= this.height) {
+                // Twinkle alpha variation
+                const twinkle = 0.45 + 0.55 * Math.sin(time * star.twinkleSpeed + star.twinklePhase);
+                const scaleAlpha = Math.min(1.0, proj.scale * proj.scale);
+                this.ctx.fillStyle = star.color + (twinkle * scaleAlpha).toFixed(3) + ")";
+                this.ctx.beginPath();
+                this.ctx.arc(proj.x, proj.y, star.size * proj.scale, 0, Math.PI * 2);
+                this.ctx.fill();
+              }
+            });
+            this.ctx.restore();
+          }
+
           // Sync node radius highlights based on active node
           this.nodes.forEach(n => {
-            n.radius = n.id === activeEngramId ? 18 : 12;
+            const baseRadius = n.id === activeEngramId ? 18 : 12;
+            n.radius = Math.min(baseRadius + ((n.mass || 0) * 2.5), 45);
           });
           
-          // 2. Pre-calculate projections for all nodes
-          const projectedNodes = this.nodes.map(n => {
-            const proj = project(n.x, n.y, n.z);
-            return {
-              node: n,
-              x: proj.x,
-              y: proj.y,
-              scale: proj.scale,
-              z2: proj.z2
-            };
-          });
+          // 2. Pre-calculate projections for all nodes (Filter out off-camera nodes)
+          const projectedNodes = this.nodes
+            .map(n => {
+              const proj = project(n.x, n.y, n.z);
+              return {
+                node: n,
+                x: proj.x,
+                y: proj.y,
+                scale: proj.scale,
+                z2: proj.z2,
+                visible: proj.visible
+              };
+            })
+            .filter(p => p.visible && p.scale > 0);
           
           // Map to look up projected coordinates by node ID quickly
           const projMap = new Map(projectedNodes.map(p => [p.node.id, p]));
+
+          // Draw Nebula Gasses behind the nodes & links (Ultra-thin, slim halo for soft celestial glow)
+          projectedNodes.forEach(p => {
+            const n = p.node;
+            const scale = p.scale;
+            const mass = n.mass || 0;
+            const isActive = n.id === activeEngramId;
+            const isStar = mass >= 3;
+            
+            if (isActive || isStar) {
+              this.ctx.save();
+              // Slim down radius to 1.5x of star size to prevent overlapping giant circles
+              const nebulaRadius = n.radius * scale * 1.5;
+              // Dim the opacity to less than 1% to allow overlay blending without visual clutter
+              let nebulaColor = "rgba(115, 140, 150, 0.008)"; // Slated teal-cyan gas for massive active stars
+              if (isActive) {
+                nebulaColor = "rgba(255, 255, 255, 0.012)"; // White aura for active node
+              } else if (mass >= 3 && mass < 5) {
+                nebulaColor = "rgba(167, 109, 146, 0.006)"; // Smoky plum gas for medium stars
+              }
+              
+              const grad = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, nebulaRadius);
+              grad.addColorStop(0, nebulaColor);
+              // Smooth out transit curve to 0 to prevent hard outer circular edges
+              grad.addColorStop(0.3, nebulaColor.replace("0.008", "0.0015").replace("0.006", "0.001").replace("0.012", "0.002"));
+              grad.addColorStop(0.65, nebulaColor.replace("0.008", "0.0003").replace("0.006", "0.0002").replace("0.012", "0.0005"));
+              grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+              
+              this.ctx.fillStyle = grad;
+              this.ctx.beginPath();
+              this.ctx.arc(p.x, p.y, nebulaRadius, 0, Math.PI * 2);
+              this.ctx.fill();
+              this.ctx.restore();
+            }
+          });
           
-          // 3. Draw Links (Minimalist clean paths of light with perspective)
+          // 3. Draw Links (Minimalist clean paths of light with perspective, always using space colors)
           this.links.forEach(l => {
             const pA = projMap.get(l.source);
             const pB = projMap.get(l.target);
@@ -1655,88 +1771,190 @@
             this.ctx.moveTo(pA.x, pA.y);
             this.ctx.lineTo(pB.x, pB.y);
             
-            // Perspective average scale
             const avgScale = (pA.scale + pB.scale) / 2;
             let colorStr = "";
             
             if (isHighlight) {
-              colorStr = isDark ? "rgba(96, 165, 250, " : "rgba(37, 99, 235, "; // Vibrant blue highlight thread
+              colorStr = "rgba(200, 220, 215, "; // Soft slated mint for highlighted link
             } else {
-              // Wabi-Sabi low-saturation color coding based on similarity strength
               if (l.strength >= 0.85) {
-                colorStr = isDark ? "rgba(163, 197, 191, " : "rgba(110, 155, 146, ";
+                colorStr = "rgba(120, 150, 140, "; // Strong link - slated mint green
               } else if (l.strength >= 0.70) {
-                colorStr = isDark ? "rgba(182, 185, 212, " : "rgba(132, 137, 175, ";
+                colorStr = "rgba(115, 140, 150, "; // Medium link - slated cyan
               } else {
-                colorStr = isDark ? "rgba(148, 155, 163, " : "rgba(115, 122, 130, ";
+                colorStr = "rgba(130, 120, 150, "; // Weak link - dusty lavender violet
               }
             }
             
-            // Draw faint, ultra-thin solid lines instead of busy dotted lines
-            const alpha = isHighlight ? 0.75 : (l.strength * 0.12); // Reduced opacity for non-highlighted lines
+            const alpha = isHighlight ? 0.65 : (l.strength * 0.12);
             this.ctx.strokeStyle = colorStr + (alpha * avgScale * avgScale) + ")";
-            this.ctx.lineWidth = (isHighlight ? 1.5 : 0.7) * avgScale;
+            this.ctx.lineWidth = (isHighlight ? 1.2 : 0.6) * avgScale;
             this.ctx.stroke();
           });
           
           // 4. Sort nodes by scale ASCENDING (further away is drawn first / Painter's Algorithm)
           projectedNodes.sort((a, b) => a.scale - b.scale);
           
-          // 5. Pass 1: Draw ALL Node Circles (Memory cells with dynamic 3D scale, fog, and aura)
+          // 5. Pass 1: Draw ALL Node Spheres (Memory cells with dynamic 3D scale, fog, and aura)
           projectedNodes.forEach(p => {
             const n = p.node;
             const scale = p.scale;
             
             const isActive = n.id === activeEngramId;
             const isHover = n === this.hoveredNode;
+            const mass = n.mass || 0;
+            const isStar = mass >= 3;
+            
+            // Soft breathe animation for glow intensity instead of resizing body size
+            const twinkle = 0.85 + 0.15 * Math.sin(time * 2.0 + n.x);
+            // Breathing twinkle factor (3Hz) for active/selected node specifically to make it shimmer organic
+            const activeTwinkle = 0.72 + 0.28 * Math.sin(time * 3.0 + n.x * 1.5);
             
             this.ctx.beginPath();
             
-            if (isHover || isActive) {
+            if (isHover || isActive || isStar || mass > 0) {
+              // Self-luminous celestial radial gradient (avoiding harsh metallic reflections)
+              const sphGrad = this.ctx.createRadialGradient(
+                p.x, p.y, 0, // Center glowing core
+                p.x, p.y, n.radius * scale // Outer atmospheric boundary
+              );
+              
+              let shadowColor = "rgba(0, 0, 0, 0)";
+              let glowSize = 0;
+              
+              if (isActive || isStar) {
+                // Breathing glow pulsing for selected node (18px-28px at 3Hz), regular twinkle for others
+                glowSize = (isActive ? (18 + 10 * Math.sin(time * 3.0 + n.x * 1.5)) : 8 + mass * 2) * scale * twinkle;
+                
+                if (isActive) {
+                  // Focus Node: Dazzling Luminous White Core with breathing core twinkle
+                  shadowColor = "rgba(255, 255, 255, 0.95)";
+                  sphGrad.addColorStop(0, `rgba(255, 255, 255, ${activeTwinkle})`);
+                  sphGrad.addColorStop(0.3, `rgba(240, 245, 250, ${0.9 * activeTwinkle})`); // Softest white-blue
+                  sphGrad.addColorStop(0.75, `rgba(200, 215, 220, ${0.7 * activeTwinkle})`); // Soft slated azure
+                  sphGrad.addColorStop(1, "rgba(15, 23, 42, 0.0)"); // Outer edge fades completely to black space
+                } else if (mass >= 5) {
+                  // Supermassive Aurora Green Star (Chic slated green instead of raw blue)
+                  shadowColor = "rgba(45, 120, 115, 0.75)"; // Slated green glow
+                  sphGrad.addColorStop(0, "rgba(240, 249, 248, 1.0)"); // Pale mint white core
+                  sphGrad.addColorStop(0.35, "rgba(45, 120, 115, 0.9)"); // Slated green
+                  sphGrad.addColorStop(0.7, "rgba(25, 75, 72, 0.6)"); // Dark teal
+                  sphGrad.addColorStop(1, "rgba(15, 23, 42, 0.0)"); // Outer edge fades completely to black space
+                } else if (mass >= 3) {
+                  // Warm Aurora Magenta/Gold Star (Chic smoky plum instead of raw orange)
+                  shadowColor = "rgba(167, 109, 146, 0.65)"; // Plum glow
+                  sphGrad.addColorStop(0, "rgba(255, 244, 255, 1.0)"); // Pale pink white core
+                  sphGrad.addColorStop(0.4, "rgba(167, 109, 146, 0.9)"); // Smoky plum
+                  sphGrad.addColorStop(0.75, "rgba(100, 65, 88, 0.6)"); // Dark plum
+                  sphGrad.addColorStop(1, "rgba(15, 23, 42, 0.0)"); // Outer edge fades completely to black space
+                }
+              } else if (isHover && scale > 0.8) {
+                glowSize = 8 * scale;
+                shadowColor = "rgba(255, 255, 255, 0.35)";
+                sphGrad.addColorStop(0, "rgba(255, 255, 255, 1.0)");
+                sphGrad.addColorStop(0.4, "rgba(139, 122, 186, 0.85)"); // Dusty violet hover
+                sphGrad.addColorStop(1, "rgba(15, 23, 42, 0.0)");
+              } else {
+                // Standard planet with soft amethyst purple gas shading (Chic dusty violet)
+                sphGrad.addColorStop(0, "rgba(245, 245, 250, 1.0)"); // Pale lavender
+                sphGrad.addColorStop(0.4, "rgba(139, 122, 186, 0.85)"); // Dusty violet
+                sphGrad.addColorStop(1, "rgba(15, 23, 42, 0.0)"); // Outer edge fades completely to black space
+              }
+              
+              // Draw highly transparent rainbow prism halo around celestial star cores (Animated Twinkle)
+              if (isActive || isStar) {
+                this.ctx.save();
+                // Slim down prism radius to make it hover close to the core (1.5x - 1.8x)
+                const prismRadius = n.radius * scale * (isActive ? 1.8 : 1.5) * twinkle;
+                const pGrad = this.ctx.createRadialGradient(
+                  p.x, p.y, n.radius * scale * 0.8,
+                  p.x, p.y, prismRadius
+                );
+                // Faster twinkle cycle specifically for the prism specter (prismTwinkle)
+                const prismTwinkle = 0.35 + 0.65 * Math.sin(time * 6.5 + n.x * 3.0);
+                
+                pGrad.addColorStop(0, "rgba(255, 255, 255, 0)");
+                pGrad.addColorStop(0.15, `rgba(96, 165, 250, ${(0.03 * prismTwinkle).toFixed(3)})`); // Cyan/Blue
+                pGrad.addColorStop(0.4, `rgba(168, 85, 247, ${(0.025 * prismTwinkle).toFixed(3)})`); // Purple
+                pGrad.addColorStop(0.65, `rgba(244, 63, 94, ${(0.015 * prismTwinkle).toFixed(3)})`); // Pink/Red
+                pGrad.addColorStop(0.85, `rgba(253, 224, 71, ${(0.004 * prismTwinkle).toFixed(3)})`); // Yellow/Gold - extremely faint before fade-out
+                pGrad.addColorStop(1, "rgba(0, 0, 0, 0)"); // Fade completely to transparent black to eliminate hard border lines
+                
+                this.ctx.fillStyle = pGrad;
+                this.ctx.beginPath();
+                this.ctx.arc(p.x, p.y, prismRadius, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.restore();
+              }
+              
               this.ctx.arc(p.x, p.y, n.radius * scale, 0, Math.PI * 2);
               
-              // Premium micro-shadow/blur aura for active or close foreground memory nodes
-              if (isActive) {
-                this.ctx.shadowColor = isDark ? "rgba(96, 165, 250, 0.4)" : "rgba(37, 99, 235, 0.25)";
-                this.ctx.shadowBlur = 12 * scale;
-              } else if (isHover && scale > 0.8) {
-                this.ctx.shadowColor = isDark ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.1)";
-                this.ctx.shadowBlur = 8 * scale;
+              if (glowSize > 0) {
+                this.ctx.shadowColor = shadowColor;
+                this.ctx.shadowBlur = glowSize;
               } else {
                 this.ctx.shadowBlur = 0;
               }
               
-              // Fill color matching premium glassmorphism theme with Z-fog opacity
-              const depthFog = Math.min(1.0, Math.max(0.15, scale * scale)); // Quadratic fog fade
-              const nodeAlpha = (isHover || isActive) ? 1.0 : (0.55 * depthFog);
-              
-              if (isActive) {
-                this.ctx.fillStyle = isDark ? `rgba(30, 41, 59, ${nodeAlpha})` : `rgba(255, 255, 255, ${nodeAlpha})`;
-              } else {
-                this.ctx.fillStyle = isDark ? `rgba(45, 55, 72, ${nodeAlpha})` : `rgba(240, 244, 248, ${nodeAlpha})`;
-              }
+              this.ctx.fillStyle = sphGrad;
               this.ctx.fill();
+              this.ctx.shadowBlur = 0; // Reset shadow immediately
               
-              // Outline border with 3D scale and depth fade
+              // Draw Orbit Twinkle Aura for active node (Dashed circle replaced by breathing light)
               if (isActive) {
-                this.ctx.strokeStyle = isDark ? `rgba(96, 165, 250, ${nodeAlpha})` : `rgba(37, 99, 235, ${nodeAlpha})`;
-                this.ctx.lineWidth = 2.0 * scale;
-              } else {
-                this.ctx.strokeStyle = isDark ? `rgba(160, 174, 192, ${0.6 * depthFog})` : `rgba(113, 128, 150, ${0.65 * depthFog})`;
-                this.ctx.lineWidth = 1.25 * scale;
+                this.ctx.save();
+                const auraTwinkle = 0.4 + 0.6 * Math.sin(time * 3.0 + n.x * 1.5); // Synced with core breathing twinkle (3Hz)
+                const auraRadius = n.radius * scale * (1.15 + 0.22 * Math.sin(time * 1.5)); // Breathing expansion/contraction
+                
+                const auraGrad = this.ctx.createRadialGradient(
+                  p.x, p.y, n.radius * scale * 0.9,
+                  p.x, p.y, auraRadius
+                );
+                auraGrad.addColorStop(0, `rgba(255, 255, 255, ${0.12 * auraTwinkle})`);
+                auraGrad.addColorStop(0.5, `rgba(200, 220, 215, ${0.06 * auraTwinkle})`); // Slated mint glow
+                auraGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+                
+                this.ctx.fillStyle = auraGrad;
+                this.ctx.beginPath();
+                this.ctx.arc(p.x, p.y, auraRadius, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.restore();
               }
-              this.ctx.stroke();
+              
             } else {
-              // Minimal tiny core circle for non-active nodes to highlight clean architecture
+              // Stardust (mass 0, inactive, non-hovered) - Replacing gray with dynamic aurora color shards
               const depthFog = Math.min(1.0, Math.max(0.15, scale * scale));
-              this.ctx.arc(p.x, p.y, 2.5 * scale, 0, Math.PI * 2);
-              this.ctx.fillStyle = isDark ? `rgba(160, 174, 192, ${0.6 * depthFog})` : `rgba(113, 128, 150, ${0.6 * depthFog})`;
+              this.ctx.arc(p.x, p.y, n.radius * scale, 0, Math.PI * 2);
+              
+              const stGrad = this.ctx.createRadialGradient(
+                p.x, p.y, 0,
+                p.x, p.y, n.radius * scale
+              );
+              
+              // Deterministically assign color category based on node ID character hash to avoid random frame flickering
+              const charCode = n.id.charCodeAt(n.id.length - 1) || 0;
+              const colorType = charCode % 3;
+              
+              if (colorType === 0) {
+                // Slated Mint stardust
+                stGrad.addColorStop(0, `rgba(180, 205, 195, ${0.9 * depthFog})`);
+                stGrad.addColorStop(1, `rgba(45, 120, 115, ${0.15 * depthFog})`);
+              } else if (colorType === 1) {
+                // Slated Cyan stardust
+                stGrad.addColorStop(0, `rgba(175, 195, 205, ${0.9 * depthFog})`);
+                stGrad.addColorStop(1, `rgba(45, 115, 120, ${0.15 * depthFog})`);
+              } else {
+                // Dusty Violet stardust
+                stGrad.addColorStop(0, `rgba(195, 185, 205, ${0.9 * depthFog})`);
+                stGrad.addColorStop(1, `rgba(139, 122, 186, ${0.15 * depthFog})`);
+              }
+              
+              this.ctx.fillStyle = stGrad;
               this.ctx.fill();
             }
-            this.ctx.shadowBlur = 0; // Reset shadow
           });
           
-          // 6. Pass 2: Draw ALL Active/Hovered Text Labels on TOP of all nodes
+          // 6. Pass 2: Draw ALL Active/Hovered Text Labels on TOP of all nodes (White text on black background)
           projectedNodes.forEach(p => {
             const n = p.node;
             const scale = p.scale;
@@ -1754,14 +1972,14 @@
               const depthFog = Math.min(1.0, Math.max(0.15, scale * scale));
               const nodeAlpha = (isHover || isActive) ? 1.0 : (0.55 * depthFog);
 
-              // Draw thick background text stroke for legibility/contrast
+              // Draw thick background text stroke for legibility/contrast (Always black stroke)
               this.ctx.save();
-              this.ctx.strokeStyle = isDark ? "rgba(15, 23, 42, 0.9)" : "rgba(255, 255, 255, 0.9)";
+              this.ctx.strokeStyle = "rgba(0, 0, 0, 0.95)";
               this.ctx.lineWidth = 4;
               this.ctx.lineJoin = "round";
               this.ctx.strokeText(n.text, p.x, labelY);
               
-              this.ctx.fillStyle = isDark ? `rgba(241, 245, 249, ${nodeAlpha})` : `rgba(30, 41, 59, ${nodeAlpha})`;
+              this.ctx.fillStyle = `rgba(241, 245, 249, ${nodeAlpha})`; // Always light text
               this.ctx.fillText(n.text, p.x, labelY);
               this.ctx.restore();
               
@@ -1776,17 +1994,91 @@
                 const tagY = p.y + (n.radius * scale) + 14;
                 
                 // Draw background stroke for tags as well
-                this.ctx.strokeStyle = isDark ? "rgba(15, 23, 42, 0.9)" : "rgba(255, 255, 255, 0.9)";
+                this.ctx.strokeStyle = "rgba(0, 0, 0, 0.95)";
                 this.ctx.lineWidth = 3;
                 this.ctx.lineJoin = "round";
                 this.ctx.strokeText(tagStr, p.x, tagY);
 
-                this.ctx.fillStyle = isDark ? `rgba(148, 163, 184, ${nodeAlpha})` : `rgba(100, 116, 139, ${nodeAlpha})`;
+                this.ctx.fillStyle = `rgba(148, 163, 184, ${nodeAlpha})`;
                 this.ctx.fillText(tagStr, p.x, tagY);
                 this.ctx.restore();
               }
             }
           });
+          
+          // 6. Draw Canvas HUD Legend & Scale (On the left side for functional measurement of semantic distances)
+          this.ctx.save();
+          
+          // Draw Vertical Link Legend (Top-Left)
+          const legendX = 20;
+          const legendY = 28;
+          
+          this.ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+          this.ctx.font = "italic 300 8px 'Playfair Display', sans-serif";
+          this.ctx.textAlign = "left";
+          this.ctx.fillText("RESONANCE", legendX, legendY - 8);
+          
+          const legendItems = [
+            { label: "Close", color: "rgba(120, 150, 140, 0.65)" },
+            { label: "Medium", color: "rgba(115, 140, 150, 0.4)" },
+            { label: "Distant", color: "rgba(130, 120, 150, 0.2)" }
+          ];
+          
+          legendItems.forEach((item, idx) => {
+            const itemY = legendY + idx * 14;
+            
+            // Draw link line sample
+            this.ctx.strokeStyle = item.color;
+            this.ctx.lineWidth = 0.8;
+            this.ctx.beginPath();
+            this.ctx.moveTo(legendX, itemY + 4);
+            this.ctx.lineTo(legendX + 18, itemY + 4);
+            this.ctx.stroke();
+            
+            // Draw legend label
+            this.ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+            this.ctx.font = "200 7.5px 'Noto Serif JP', sans-serif";
+            this.ctx.fillText(item.label, legendX + 24, itemY + 7);
+          });
+          
+          // Draw Horizontal Distance Scale Bar (Bottom-Left)
+          const scaleBarWidth = 55;
+          const scaleX = 20;
+          const scaleY = this.height - 35;
+          
+          // Scale represents semantic units relative to current zoom factor
+          const semanticUnits = Math.round(100 / this.zoom);
+          
+          this.ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+          this.ctx.lineWidth = 0.8;
+          
+          // Draw ruler scale brackets with division ticks (物差し目盛り)
+          this.ctx.beginPath();
+          // Left bracket
+          this.ctx.moveTo(scaleX, scaleY - 3);
+          this.ctx.lineTo(scaleX, scaleY);
+          // Right bracket
+          this.ctx.lineTo(scaleX + scaleBarWidth, scaleY);
+          this.ctx.lineTo(scaleX + scaleBarWidth, scaleY - 3);
+          
+          // Intermediate division ticks (25%, 50%, 75% tick markers)
+          this.ctx.moveTo(scaleX + scaleBarWidth * 0.25, scaleY);
+          this.ctx.lineTo(scaleX + scaleBarWidth * 0.25, scaleY - 2);
+          
+          this.ctx.moveTo(scaleX + scaleBarWidth * 0.5, scaleY);
+          this.ctx.lineTo(scaleX + scaleBarWidth * 0.5, scaleY - 2);
+          
+          this.ctx.moveTo(scaleX + scaleBarWidth * 0.75, scaleY);
+          this.ctx.lineTo(scaleX + scaleBarWidth * 0.75, scaleY - 2);
+          
+          this.ctx.stroke();
+          
+          // Draw scale text label - changed from 'RU (Resonance Unit)' to 'Resonance Unit'
+          this.ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
+          this.ctx.font = "200 8.5px 'Playfair Display', sans-serif";
+          this.ctx.fillText(`${semanticUnits} Resonance Unit`, scaleX, scaleY - 9);
+          
+          this.ctx.restore();
         }
 
         initEvents() {
@@ -1843,6 +2135,14 @@
           // Mouse/Touch Down
           const onDown = (e) => {
             const pos = getMousePos(e);
+            const now = Date.now();
+            const DOUBLE_TAP_DELAY = 300;
+            
+            // Clear previous long press timer immediately to avoid double triggers
+            if (this.longPressTimeout) {
+              clearTimeout(this.longPressTimeout);
+              this.longPressTimeout = null;
+            }
             
             // Check if touch is multi-touch (2 fingers) for Pinch-to-Zoom
             if (e.touches && e.touches.length === 2) {
@@ -1866,8 +2166,35 @@
               node.vy = 0;
               node.vz = 0;
               
+              const isAlreadySelected = activeEngramId === node.id;
               activeEngramId = node.id;
-              this.displaySelectedEngram(node);
+              
+              // Touch interaction logic
+              if (e.touches && e.touches.length === 1) {
+                // A. Re-tap selection method (Tap an already active node to view details)
+                if (isAlreadySelected) {
+                  this.displaySelectedEngram(node);
+                }
+                
+                // B. Long press method (600ms hold to view details)
+                this.longPressTimeout = setTimeout(() => {
+                  this.displaySelectedEngram(node);
+                  if (navigator.vibrate) {
+                    try { navigator.vibrate(35); } catch(err) {} // Soft haptic bump
+                  }
+                }, 600);
+                
+                // C. Double tap fallback method
+                if (now - this.lastTapTime < DOUBLE_TAP_DELAY) {
+                  this.displaySelectedEngram(node);
+                }
+                this.lastTapTime = now;
+              } else if (!e.touches) {
+                // For PC: Click already selected node to load details as well
+                if (isAlreadySelected) {
+                  this.displaySelectedEngram(node);
+                }
+              }
             } else {
               // Clicked background: trigger camera rotation or panning
               this.lastMouseX = pos.clientX;
@@ -1885,6 +2212,12 @@
           // Mouse/Touch Move
           const onMove = (e) => {
             const pos = getMousePos(e);
+            
+            // Cancel long press timer immediately upon moving/dragging
+            if (this.longPressTimeout) {
+              clearTimeout(this.longPressTimeout);
+              this.longPressTimeout = null;
+            }
             
             // Handle multi-touch pinch to zoom & pan
             if (e.touches && e.touches.length === 2 && this.isPanningCamera) {
@@ -1934,11 +2267,11 @@
               this.draggedNode.vy = 0;
               this.draggedNode.vz = 0;
             } else if (this.isDraggingCamera) {
-              // Orbit Camera rotation
+              // Orbit Camera rotation (Removed pitch rotation constraints to allow full 360-degree free celestial spinning)
               const dx = pos.clientX - this.lastMouseX;
               const dy = pos.clientY - this.lastMouseY;
               this.cameraAngleY += dx * 0.006;
-              this.cameraAngleX = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, this.cameraAngleX - dy * 0.006));
+              this.cameraAngleX -= dy * 0.006;
               this.lastMouseX = pos.clientX;
               this.lastMouseY = pos.clientY;
             } else if (this.isPanningCamera) {
@@ -1965,11 +2298,25 @@
 
           // Mouse/Touch Up
           const onUp = () => {
+            // Cancel long press timer immediately upon releasing
+            if (this.longPressTimeout) {
+              clearTimeout(this.longPressTimeout);
+              this.longPressTimeout = null;
+            }
             this.draggedNode = null;
             this.isDraggingCamera = false;
             this.isPanningCamera = false;
             this.lastTouchDist = 0;
           };
+
+          // PC Double Click Event
+          this.canvas.addEventListener('dblclick', (e) => {
+            const pos = getMousePos(e);
+            const node = findNodeAt(pos);
+            if (node) {
+              this.displaySelectedEngram(node);
+            }
+          });
 
           // Prevent Context Menu on canvas for right click panning
           this.canvas.addEventListener('contextmenu', e => e.preventDefault());
@@ -2053,7 +2400,7 @@
           html += `<p class="text-xxs tracking-widest uppercase mb-2 opacity-50 select-none" style="color: var(--text-sub); font-family: 'Playfair Display', serif;">${relLabel}</p>`;
           html += `<div class="flex flex-col gap-2">`;
 
-          data.related_links.forEach((link) => {
+          data.related_links.slice(0, 5).forEach((link) => {
             const shortId = (link.to_engram_id || '').substring(0, 8);
             const similarity = (link.strength || 0).toFixed(2);
             const context = link.reason_of_connection || '';

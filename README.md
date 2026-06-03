@@ -129,6 +129,22 @@ HTML5 Canvas (`#memoryMapCanvas`) 上に、力学モデル（Force-Directed Engi
 | `GET` | `/api/search` | Perform Gemini-powered semantic vector search across engrams |
 | `DELETE` | `/api/resetDatabase` | Clear all engrams from MongoDB or mock memory |
 
+## Troubleshooting & DB Migration (ベクトルのマイグレーション)
+
+以前に `GEMINI_API_KEY` を設定せずに（Mockモードで）追加したデータが MongoDB Atlas に存在する場合、それらのベクトルは `Mock Embedding`（文字コードベースの疑似ランダムベクトル）で保存されています。
+この状態で `GEMINI_API_KEY` を設定して起動すると、検索クエリには「本物の Gemini Embedding ベクトル」が生成されるため、ベクトルの種類（空間）の不一致が原因で「意味検索がヒットしない」または「新しく本物で登録された一部のノードにしかヒットしない」という現象が発生します。
+
+これを解消するための診断・修復用のユーティリティスクリプトが `scratch` ディレクトリに用意されています。
+
+*   **`scratch/check_db.js`**: データベース内のドキュメント数やベクトルの次元数・格納状態をチェックします。
+*   **`scratch/verify_mock_db.js`**: 保存されているベクトルが Mock ベクトルであるかを自動検証します。
+*   **`scratch/migrate_embeddings.js`**: データベース内のすべての既存 Mock ベクトルを、現在の API キーを用いて本物の Gemini Embedding（`gemini-embedding-2-preview`）に一括再生成して更新するマイグレーションスクリプトです。
+
+**移行コマンドの実行:**
+```bash
+node scratch/migrate_embeddings.js
+```
+
 ---
 
 ## Quick Start

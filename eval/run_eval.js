@@ -94,6 +94,19 @@ async function runEvaluation() {
   }
 
   try {
+    // 🧹 テスト開始前にデータベースをリセットしてクリーンな状態にする
+    try {
+      await makeRequest({
+        host: HOST,
+        port: PORT,
+        path: '/api/resetDatabase',
+        method: 'DELETE'
+      });
+      console.log("🧹 テスト開始前にデータベースをクリーンアップしました。");
+    } catch (resetErr) {
+      console.warn("⚠️ テスト開始前のデータベースクリアに失敗しました:", resetErr.message);
+    }
+
     // 1. UI 疎通と人間工学アフォーダンス (アプローチB 含む)
     let uiPassed = false;
     let uiDetail = "";
@@ -516,6 +529,19 @@ async function runEvaluation() {
     }
 
   } finally {
+    // 🧹 テスト終了後にデータベースをクリーンアップして残骸を残さないようにする
+    try {
+      await makeRequest({
+        host: HOST,
+        port: PORT,
+        path: '/api/resetDatabase',
+        method: 'DELETE'
+      });
+      console.log("🧹 テスト終了後にデータベースをクリーンアップしました。");
+    } catch (resetErr) {
+      console.warn("⚠️ テスト終了後のデータベースクリーンアップに失敗しました:", resetErr.message);
+    }
+
     if (autoStarted) {
       stopServer();
     }
