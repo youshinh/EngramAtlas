@@ -19,8 +19,22 @@ function hasMongoUri() {
   return !!(mongoUri && mongoUri !== 'mongodb_connection_string_here');
 }
 
+// ⚡ Bolt: Global MongoClient instance for connection pooling
+let globalDbClient = null;
+let globalDb = null;
+
 if (hasMongoUri()) {
   console.log("🟢 [MongoDB Atlas] URI detected. All requests will use MongoDB Atlas.");
+  globalDbClient = new MongoClient(mongoUri);
+  globalDb = globalDbClient.db('engram_atlas');
+  // Connect once at startup
+  globalDbClient.connect()
+    .then(() => {
+      console.log("🟢 [MongoDB Atlas] Global connection pool established.");
+    })
+    .catch(err => {
+      console.error("🔴 [MongoDB Atlas] Failed to establish global connection pool:", err);
+    });
 } else {
   console.warn("⚠️ [MongoDB Atlas] No URI configured. Using in-memory mock fallback.");
 }
@@ -510,11 +524,9 @@ app.post('/api/sendNoise', async (req, res) => {
     let useMongo = false;
     let targetId = null;
 
-    if (hasMongoUri()) {
-      const dbClient = new MongoClient(mongoUri);
-      await dbClient.connect();
+    if (hasMongoUri() && globalDb) {
       try {
-        const db = dbClient.db('engram_atlas');
+        const db = globalDb;
         const engramsCollection = db.collection('engrams');
         // 1. Gather all high-similarity candidates (>= 0.70)
         const pastEngrams = await engramsCollection.find({ 
@@ -563,8 +575,8 @@ app.post('/api/sendNoise', async (req, res) => {
           console.log(`🗑️ [MongoDB] Autonomously forgotten engram: ${targetId}. Success: ${deleteRes.deletedCount > 0}. Cleared references: ${updateRes.modifiedCount}`);
           useMongo = true;
         }
-      } finally {
-        await dbClient.close();
+      } catch (err) {
+        console.error("Error during autonomous forget:", err);
       }
     }
 
@@ -738,10 +750,9 @@ app.post('/api/sendNoise', async (req, res) => {
         throw new Error(`[TRANSIENT] Simulated API Rate Limit Exceeded (429) - Attempt ${currentAttempt}`);
       }
 
-      if (mongoUri && mongoUri !== 'mongodb_connection_string_here') {
-        dbClient = new MongoClient(mongoUri);
-        await dbClient.connect();
-        const db = dbClient.db('engram_atlas');
+      if (hasMongoUri() && globalDb) {
+        useMongo = true; // Set useMongo to true since we are using DB
+        const db = globalDb;
         const engramsCollection = db.collection('engrams');
 
         // Create new engram document
@@ -1086,11 +1097,9 @@ app.get('/api/getEngram', async (req, res) => {
   const mongoUri = process.env.MONGODB_URI;
 
   try {
-    if (hasMongoUri()) {
-      const dbClient = new MongoClient(mongoUri);
-      await dbClient.connect();
+    if (hasMongoUri() && globalDb) {
       try {
-        const db = dbClient.db('engram_atlas');
+        const db = globalDb;
         const engramsCollection = db.collection('engrams');
         
         let objId;
@@ -1140,8 +1149,8 @@ app.get('/api/getEngram', async (req, res) => {
         }
 
         return res.json(engram);
-      } finally {
-        await dbClient.close();
+      } catch(e) {
+        throw e;
       }
     } else {
       const engram = mockEngrams.find(e => e._id === id);
@@ -1176,10 +1185,8 @@ app.post('/api/forgetEngram', async (req, res) => {
 
   try {
     if (hasMongoUri()) {
-      const dbClient = new MongoClient(mongoUri);
-      await dbClient.connect();
       try {
-        const db = dbClient.db('engram_atlas');
+        const db = globalDb;
         const engramsCollection = db.collection('engrams');
         
         let objId;
@@ -1200,8 +1207,8 @@ app.post('/api/forgetEngram', async (req, res) => {
 
         console.log(`🗑️ [MongoDB] Deleted engram. Success: ${deleteRes.deletedCount > 0}. Cleared references: ${updateRes.modifiedCount}`);
         return res.json({ success: true, message: "Engram forgotten and relationships metabolised" });
-      } finally {
-        await dbClient.close();
+      } catch (err) {
+        throw err;
       }
     } else {
       // Mock DB
@@ -1265,11 +1272,9 @@ app.post('/api/updateEngram', async (req, res) => {
   const embedding = await getEmbedding(processedInputText, apiKey);
 
   try {
-    if (hasMongoUri()) {
-      const dbClient = new MongoClient(mongoUri);
-      await dbClient.connect();
+    if (hasMongoUri() && globalDb) {
       try {
-        const db = dbClient.db('engram_atlas');
+        const db = globalDb;
         const engramsCollection = db.collection('engrams');
         
         let objId;
@@ -1409,8 +1414,8 @@ app.post('/api/updateEngram', async (req, res) => {
             scope: "PERSONAL"
           }
         });
-      } finally {
-        await dbClient.close();
+      } catch (err) {
+        throw err;
       }
     } else {
       // Mock DB
@@ -1510,10 +1515,8 @@ app.get('/api/search', async (req, res) => {
     const embedding = await getEmbedding(query, apiKey);
 
     if (hasMongoUri()) {
-      const dbClient = new MongoClient(mongoUri);
-      await dbClient.connect();
       try {
-        const db = dbClient.db('engram_atlas');
+        const db = globalDb;
         const engramsCollection = db.collection('engrams');
 
         // Attempt MongoDB Atlas Vector Search ($vectorSearch)
@@ -1559,8 +1562,8 @@ app.get('/api/search', async (req, res) => {
         .slice(0, 10);
 
         return res.json(results);
-      } finally {
-        await dbClient.close();
+      } catch(err) {
+        throw err;
       }
     } else {
       // Mock DB manual similarity scan
@@ -1591,16 +1594,14 @@ app.delete('/api/resetDatabase', async (req, res) => {
   console.log('🗑️ [Reset Database] Request received.');
   try {
     if (hasMongoUri()) {
-      const dbClient = new MongoClient(mongoUri);
-      await dbClient.connect();
       try {
-        const db = dbClient.db('engram_atlas');
+        const db = globalDb;
         const engramsCollection = db.collection('engrams');
         const result = await engramsCollection.deleteMany({});
         console.log(`🗑️ [Reset Database] Deleted ${result.deletedCount} engrams from MongoDB Atlas.`);
         return res.json({ success: true, mode: 'mongodb', deletedCount: result.deletedCount });
-      } finally {
-        await dbClient.close();
+      } catch(err) {
+        throw err;
       }
     } else {
       const count = mockEngrams.length;
@@ -1619,11 +1620,9 @@ app.get('/api/getAllEngrams', async (req, res) => {
   const mongoUri = process.env.MONGODB_URI;
 
   try {
-    if (hasMongoUri()) {
-      const dbClient = new MongoClient(mongoUri);
-      await dbClient.connect();
+    if (hasMongoUri() && globalDb) {
       try {
-        const db = dbClient.db('engram_atlas');
+        const db = globalDb;
         const engramsCollection = db.collection('engrams');
         
         // 3,072次元ベクトルは可視化に不要なので除外してトラフィックを節約
@@ -1633,8 +1632,8 @@ app.get('/api/getAllEngrams', async (req, res) => {
         ).toArray();
         
         return res.json(engrams);
-      } finally {
-        await dbClient.close();
+      } catch(err) {
+        throw err;
       }
     } else {
       // Mock DB - ベクトルを除外してコピー

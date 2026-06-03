@@ -1,3 +1,6 @@
-## 2024-06-02 - Fixed N+1 Query in Express Backend
-**Learning:** Found an N+1 query issue inside a `for` loop waiting on `findOne` commands for DB resolutions on related nodes. Also, when modifying documents using `$pull` for IDs, ensure the ID format (ObjectId vs String) precisely matches the target array's schema; mismatched formats can cause `$pull` statements to fail silently.
-**Action:** Use batch `$in` operations across arrays to drastically reduce DB roundtrips. When performing `$pull` operations, actively check if `toString()` needs to be called on an `ObjectId` reference to match the string schemas used in the array payload.
+## 2024-05-24 - [MongoDB Connection Pooling]
+**Learning:** Instantiating a new `MongoClient` and calling `await client.connect()` inside every route handler circumvents connection pooling, adding connection overhead (handshake/auth) to every request. Furthermore, if `client.close()` is missed (e.g., in a complex retry block like `sendNoise`), it leads to severe connection leaks.
+**Action:** Always create a single, globally cached `MongoClient` instance at the module level and reuse it across all requests to leverage MongoDB's native connection pooling.
+## 2024-06-15 - [MongoDB Global Connection Initialization Bug]
+**Learning:** During the global connection initialization, `globalDb = globalDbClient.db(...)` should be assigned immediately after creating `globalDbClient` (synchronously), not inside the `.then()` handler of `.connect()`. This ensures that subsequent API calls utilizing `globalDb` before the connection finishes will safely queue the queries using the Node.js MongoDB driver's internal buffering, rather than silently failing or using the wrong state because `globalDb` was still `null`.
+**Action:** When implementing MongoDB connection pooling, always define the `db` instance synchronously right after creating the `MongoClient`, even if the asynchronous `connect()` call hasn't resolved yet.
