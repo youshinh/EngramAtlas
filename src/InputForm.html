@@ -11,17 +11,29 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
       :root {
-        --bg-color: #eaecef; /* Softer, slightly darker background to reduce glare */
-        --card-bg: rgba(255, 255, 255, 0.8); /* Slightly higher opacity for readability */
+        --bg-color: #f3f2eb; /* Soft warm sand ash prevents screen glare completely */
+        --card-bg: rgba(255, 255, 255, 0.9); /* Higher opacity to pop out from background */
         --text-main: #0f172a; /* Slate 950 for clear high contrast */
-        --text-sub: #475569; /* Slate 600 for clear high contrast */
-        --border-color: rgba(148, 163, 184, 0.45); /* Clearer border */
-        --input-bg: rgba(255, 255, 255, 0.95);
-        --circle-bg: rgba(0, 0, 0, 0.04);
+        --text-sub: #334155; /* Slate 700 for high readability on light backgrounds */
+        --border-color: rgba(100, 116, 139, 0.35); /* Slate 500 slightly darker border for crisp container definitions */
+        --input-bg: #ffffff; /* Solid white input background for readability */
+        --circle-bg: rgba(0, 0, 0, 0.03);
         --btn-bg: #0f172a;
         --btn-text: #ffffff;
         --btn-hover: #1e293b;
-        --result-bg: rgba(255, 255, 255, 0.85);
+        --result-bg: rgba(248, 250, 252, 0.95);
+      }
+
+      /* Font Size Customizer for Route Scale */
+      html {
+        font-size: 14px; /* Small (S) - Default */
+        transition: font-size 0.2s ease;
+      }
+      html.font-size-md {
+        font-size: 16px; /* Medium (M) */
+      }
+      html.font-size-lg {
+        font-size: 18px; /* Large (L) */
       }
 
       /* Global placeholder style for high readability contrast */
@@ -390,22 +402,61 @@
       <div class="flex flex-row justify-between items-start mb-6 sm:mb-8 pr-20 sm:pr-28 relative">
         <div class="text-left">
           <h1 class="text-2xl sm:text-3xl font-light serif-header mb-1 sm:mb-2 tracking-widest">EngramAtlas</h1>
-          <p id="uiSubtitle" class="text-xxs sm:text-xs tracking-wider" style="color: var(--text-sub);">
-            Receiving undifferentiated thought noise, weaving relationships.
+          <p id="uiSubtitle" class="text-xxs sm:text-xs tracking-wider animate-fade-in" style="color: var(--text-sub);">
+            Weaving relationships of thoughts beyond oblivion.
           </p>
         </div>
         
-        <!-- Language & Theme Controllers (Always absolute top-right) -->
-        <div class="absolute top-0 right-0 flex items-center space-x-2" style="z-index: 20;">
-          <!-- Language Selector Button -->
-          <button onclick="toggleLanguage()" class="control-pill focus:outline-none">
-            <span id="langToggleText">Ja</span>
+        <!-- Unified Settings Controller (Settings Icon & Floating Canvas Panel) -->
+        <div class="absolute top-0 right-0 animate-fade-in" style="z-index: 30;">
+          <button onclick="toggleSettingsPanel(event)" class="control-pill focus:outline-none flex items-center justify-center transition-all duration-300 hover:scale-105" id="btnSettings" style="width: 2.25rem; height: 2.25rem; padding: 0; border-radius: 9999px; border-color: var(--border-color);" title="Settings">
+            <svg class="w-4.5 h-4.5 transition-transform duration-300" id="settingsIconSvg" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.43l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.991l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.645-.869l.214-1.28z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            </svg>
           </button>
-          
-          <!-- Theme Switch Button (Pure SVG Icon for Ergonomic Minimalism) -->
-          <button onclick="toggleTheme()" class="control-pill focus:outline-none" id="btnThemeToggle" style="width: 2rem; height: 2rem; padding: 0; border-radius: 9999px;">
-            <span id="themeToggleIcon" class="flex items-center justify-center"></span>
-          </button>
+
+          <!-- Floating Settings Panel (Canvas) -->
+          <div id="settingsPanel" class="absolute top-11 right-0 w-64 p-4 rounded-2xl shadow-2xl border transition-all duration-300 transform scale-95 opacity-0 pointer-events-none z-50 text-xs" style="background-color: var(--card-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-color: var(--border-color); color: var(--text-main);">
+            <div class="flex items-center justify-between mb-3.5 pb-2 border-b border-dashed" style="border-color: var(--border-color);">
+              <span class="font-semibold tracking-widest uppercase text-xxs" id="lblSettingsTitle">Settings / 設定</span>
+              <button onclick="closeSettingsPanel()" class="opacity-50 hover:opacity-100 transition-opacity focus:outline-none">
+                <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
+
+            <div class="space-y-4">
+              <!-- Language Selector -->
+              <div class="space-y-1.5">
+                <label class="block tracking-wider font-medium text-xxs opacity-75" id="lblLang">LANGUAGE / 言語</label>
+                <div class="flex rounded-lg overflow-hidden border" style="border-color: var(--border-color);">
+                  <button id="btnLangEn" onclick="setLanguage('en')" class="flex-1 py-1.5 text-center focus:outline-none transition-colors duration-200">English</button>
+                  <button id="btnLangJa" onclick="setLanguage('ja')" class="flex-1 py-1.5 text-center focus:outline-none transition-colors duration-200">日本語</button>
+                </div>
+              </div>
+
+              <!-- Theme Selector -->
+              <div class="space-y-1.5">
+                <label class="block tracking-wider font-medium text-xxs opacity-75" id="lblTheme">THEME / テーマ</label>
+                <div class="flex rounded-lg overflow-hidden border" style="border-color: var(--border-color);">
+                  <button id="btnThemeLight" onclick="setTheme('light')" class="flex-1 py-1.5 text-center focus:outline-none transition-colors duration-200">LIGHT</button>
+                  <button id="btnThemeDark" onclick="setTheme('dark')" class="flex-1 py-1.5 text-center focus:outline-none transition-colors duration-200">DARK</button>
+                </div>
+              </div>
+
+              <!-- Text Size Selector -->
+              <div class="space-y-1.5">
+                <label class="block tracking-wider font-medium text-xxs opacity-75" id="lblTextSize">TEXT SIZE / 文字サイズ</label>
+                <div class="flex rounded-lg overflow-hidden border" style="border-color: var(--border-color);">
+                  <button id="btnTextSizeSm" onclick="setTextSize('sm')" class="flex-1 py-1.5 text-center focus:outline-none transition-colors duration-200 font-light text-xxs">小 (S)</button>
+                  <button id="btnTextSizeMd" onclick="setTextSize('md')" class="flex-1 py-1.5 text-center focus:outline-none transition-colors duration-200 font-light text-xxs">中 (M)</button>
+                  <button id="btnTextSizeLg" onclick="setTextSize('lg')" class="flex-1 py-1.5 text-center focus:outline-none transition-colors duration-200 font-light text-xxs">大 (L)</button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -616,7 +667,7 @@
       // i18n Translation Dictionary with premium Forget & Refine & Map terms included
       const translations = {
         en: {
-          subtitle: "Receiving undifferentiated thought noise, weaving relationships.",
+          subtitle: "Weaving relationships of thoughts beyond oblivion.",
           placeholder: "e.g., From the perspective of life science, the cell membrane that separates the inside and outside of a cell is not merely a static boundary, but functions as a dynamic 'in-between' where substances and information are continuously exchanged.",
           btnSubmit: "Release",
           loader: "Quietly weaving relationships...",
@@ -645,7 +696,7 @@
           searchPlaceholder: "Search semantic meaning..."
         },
         ja: {
-          subtitle: "未分化 of 思考ノイズを受け止め、関係性を紡ぐ",
+          subtitle: "忘却の先にある思考の関係性を紡ぐ",
           placeholder: "例：生命科学の視点から見ると、細胞の内と外を分ける細胞膜は単なる静的な輪郭線ではなく、絶え間なく物質や情報がやり取りされる動的な「あいだ」として機能しています。",
           btnSubmit: "リリース",
           loader: "関係性を静かに紡いています...",
@@ -712,6 +763,7 @@
         applyTranslations();
       }
 
+      // i18n UI labels applying helpers
       function applyTranslations() {
         const t = translations[currentLang];
         
@@ -738,11 +790,9 @@
         if (btnForget) btnForget.title = t.btnForget;
         
         document.getElementById('uiForgetConfirmText').innerText = t.forgetConfirm;
-        
+        document.getElementById('uiForgetConfirmText').innerText = t.forgetConfirm;
         document.getElementById('uiLoaderText').innerText = t.loader;
         document.getElementById('uiResultTitle').innerHTML = t.resultTitle;
-        
-        document.getElementById('langToggleText').innerText = t.langToggle;
         
         const mapSearchInput = document.getElementById('mapSearchInput');
         if (mapSearchInput) {
@@ -775,35 +825,190 @@
         if (uiForgetConfirmText) uiForgetConfirmText.innerText = t.forgetConfirm;
         if (btnForgetYes) btnForgetYes.innerText = t.btnYes;
         if (btnForgetNo) btnForgetNo.innerText = t.btnNo;
+      }
+
+      // Settings Cache Logic (localStorage)
+      const SETTINGS_CACHE_KEY = 'engram_atlas_user_settings';
+
+      function loadCachedSettings() {
+        try {
+          const cached = localStorage.getItem(SETTINGS_CACHE_KEY);
+          if (cached) {
+            const settings = JSON.parse(cached);
+            if (settings.lang) currentLang = settings.lang;
+            if (settings.theme) {
+              if (settings.theme === 'dark') {
+                document.body.classList.add('dark-theme');
+              } else {
+                document.body.classList.remove('dark-theme');
+              }
+            }
+            if (settings.fontSize) {
+              document.documentElement.classList.remove('font-size-sm', 'font-size-md', 'font-size-lg');
+              document.documentElement.classList.add('font-size-' + settings.fontSize);
+            }
+          } else {
+            // Default check system preference for theme
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+              document.body.classList.add('dark-theme');
+            }
+            document.documentElement.classList.add('font-size-sm');
+          }
+        } catch (e) {
+          console.warn("Failed to load settings cache:", e);
+        }
+      }
+
+      function saveSettingsToCache() {
+        try {
+          const isDark = document.body.classList.contains('dark-theme');
+          const htmlClass = document.documentElement.classList;
+          let size = 'sm';
+          if (htmlClass.contains('font-size-md')) size = 'md';
+          if (htmlClass.contains('font-size-lg')) size = 'lg';
+          
+          localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify({
+            lang: currentLang,
+            theme: isDark ? 'dark' : 'light',
+            fontSize: size
+          }));
+        } catch (e) {
+          console.warn("Failed to save settings cache:", e);
+        }
+      }
+
+      // Settings panel open/close
+      let isSettingsPanelOpen = false;
+
+      function toggleSettingsPanel(event) {
+        if (event) event.stopPropagation();
+        const panel = document.getElementById('settingsPanel');
+        const icon = document.getElementById('settingsIconSvg');
+        isSettingsPanelOpen = !isSettingsPanelOpen;
         
-        // Update theme toggle icon
-        updateThemeIcon();
+        if (isSettingsPanelOpen) {
+          panel.classList.remove('pointer-events-none', 'scale-95', 'opacity-0');
+          panel.classList.add('scale-100', 'opacity-100');
+          icon.style.transform = 'rotate(45deg)';
+          updateSettingsUI();
+        } else {
+          panel.classList.remove('scale-100', 'opacity-100');
+          panel.classList.add('scale-95', 'opacity-0', 'pointer-events-none');
+          icon.style.transform = 'rotate(0deg)';
+        }
       }
 
-      // Automatically check system preference for theme
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        document.body.classList.add('dark-theme');
-      }
-      
-      // Initial translation and icon apply
-      applyTranslations();
-      updateThemeIcon();
-
-      function toggleTheme() {
-        document.body.classList.toggle('dark-theme');
-        updateThemeIcon();
+      function closeSettingsPanel() {
+        const panel = document.getElementById('settingsPanel');
+        const icon = document.getElementById('settingsIconSvg');
+        isSettingsPanelOpen = false;
+        if (panel) {
+          panel.classList.remove('scale-100', 'opacity-100');
+          panel.classList.add('scale-95', 'opacity-0', 'pointer-events-none');
+        }
+        if (icon) icon.style.transform = 'rotate(0deg)';
       }
 
-      function updateThemeIcon() {
+      function setLanguage(lang) {
+        currentLang = lang;
+        applyTranslations();
+        saveSettingsToCache();
+        updateSettingsUI();
+      }
+
+      function setTheme(theme) {
+        if (theme === 'dark') {
+          document.body.classList.add('dark-theme');
+        } else {
+          document.body.classList.remove('dark-theme');
+        }
+        saveSettingsToCache();
+        updateSettingsUI();
+      }
+
+      function setTextSize(size) {
+        document.documentElement.classList.remove('font-size-sm', 'font-size-md', 'font-size-lg');
+        document.documentElement.classList.add('font-size-' + size);
+        saveSettingsToCache();
+        updateSettingsUI();
+      }
+
+      function updateSettingsUI() {
         const isDark = document.body.classList.contains('dark-theme');
-        const iconContainer = document.getElementById('themeToggleIcon');
         
-        // Premium fine-line SVG icons representing celestial states with smooth transition transitions
-        const sunSvg = `<svg class="w-4 h-4 transition-all duration-300" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m0 13.5V21M4.929 4.929l1.591 1.591m10.996 10.996l1.591 1.591M3 12h2.25m13.5 0H21M4.929 19.071l1.591-1.591m10.996-10.996l1.591-1.591M12 7.5a4.5 4.5 0 100 9 4.5 4.5 0 000-9z"></path></svg>`;
-        const moonSvg = `<svg class="w-4 h-4 transition-all duration-300" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z"></path></svg>`;
-        
-        iconContainer.innerHTML = isDark ? sunSvg : moonSvg;
+        // Lang UI
+        const btnEn = document.getElementById('btnLangEn');
+        const btnJa = document.getElementById('btnLangJa');
+        if (btnEn && btnJa) {
+          if (currentLang === 'en') {
+            btnEn.style.backgroundColor = 'var(--btn-bg)';
+            btnEn.style.color = 'var(--btn-text)';
+            btnJa.style.backgroundColor = 'transparent';
+            btnJa.style.color = 'var(--text-main)';
+          } else {
+            btnJa.style.backgroundColor = 'var(--btn-bg)';
+            btnJa.style.color = 'var(--btn-text)';
+            btnEn.style.backgroundColor = 'transparent';
+            btnEn.style.color = 'var(--text-main)';
+          }
+        }
+
+        // Theme UI
+        const btnLight = document.getElementById('btnThemeLight');
+        const btnDark = document.getElementById('btnThemeDark');
+        if (btnLight && btnDark) {
+          if (isDark) {
+            btnDark.style.backgroundColor = 'var(--btn-bg)';
+            btnDark.style.color = 'var(--btn-text)';
+            btnLight.style.backgroundColor = 'transparent';
+            btnLight.style.color = 'var(--text-main)';
+          } else {
+            btnLight.style.backgroundColor = 'var(--btn-bg)';
+            btnLight.style.color = 'var(--btn-text)';
+            btnDark.style.backgroundColor = 'transparent';
+            btnDark.style.color = 'var(--text-main)';
+          }
+        }
+
+        // Size UI
+        const btnSm = document.getElementById('btnTextSizeSm');
+        const btnMd = document.getElementById('btnTextSizeMd');
+        const btnLg = document.getElementById('btnTextSizeLg');
+        const htmlClass = document.documentElement.classList;
+        if (btnSm && btnMd && btnLg) {
+          btnSm.style.backgroundColor = 'transparent';
+          btnSm.style.color = 'var(--text-main)';
+          btnMd.style.backgroundColor = 'transparent';
+          btnMd.style.color = 'var(--text-main)';
+          btnLg.style.backgroundColor = 'transparent';
+          btnLg.style.color = 'var(--text-main)';
+
+          if (htmlClass.contains('font-size-md')) {
+            btnMd.style.backgroundColor = 'var(--btn-bg)';
+            btnMd.style.color = 'var(--btn-text)';
+          } else if (htmlClass.contains('font-size-lg')) {
+            btnLg.style.backgroundColor = 'var(--btn-bg)';
+            btnLg.style.color = 'var(--btn-text)';
+          } else {
+            btnSm.style.backgroundColor = 'var(--btn-bg)';
+            btnSm.style.color = 'var(--btn-text)';
+          }
+        }
       }
+
+      // Close settings panel when clicking outside
+      document.addEventListener('click', (event) => {
+        const panel = document.getElementById('settingsPanel');
+        const btn = document.getElementById('btnSettings');
+        if (isSettingsPanelOpen && panel && btn && !panel.contains(event.target) && !btn.contains(event.target)) {
+          closeSettingsPanel();
+        }
+      });
+
+      // Initial settings load
+      loadCachedSettings();
+      applyTranslations();
+      updateSettingsUI();
 
       const isLocal = !window.google || !window.google.script;
 
