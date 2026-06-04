@@ -386,6 +386,24 @@ function fetchUrlTitleAndText(targetUrl, redirectCount = 0, visitedUrls = []) {
         return resolve({ title: "Security Block", content: "Protocol not allowed" });
       }
 
+      // 🛡️ SSRF Protection: Pre-flight check to block direct IP inputs bypassing dns.lookup
+      const net = require('net');
+      if (net.isIP(parsedUrl.hostname) !== 0) {
+        const address = parsedUrl.hostname;
+        if (
+          address.startsWith('127.') ||
+          address === '::1' ||
+          address === '0.0.0.0' ||
+          address === '169.254.169.254' ||
+          address.startsWith('192.168.') ||
+          address.startsWith('10.') ||
+          /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(address)
+        ) {
+          console.warn(`⚠️ [SSRF Pre-flight Block]: ${targetUrl} uses internal IP ${address}`);
+          return resolve({ title: "Security Block", content: "Internal IP accessed" });
+        }
+      }
+
       const options = {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
