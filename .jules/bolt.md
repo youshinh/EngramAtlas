@@ -5,3 +5,7 @@
 ## 2024-06-03 - Optimized In-Memory Vector Search Fetching
 **Learning:** Found that the MongoDB `find()` queries inside the similarity scanning loop in `server.js` were fetching entire documents (including potentially large `metadata`, `evolution_history`, and unused fields) just to perform a cosine similarity match against `vector_embeddings` and `content`.
 **Action:** Use query projection (`{ projection: { _id: 1, vector_embeddings: 1, content: 1 } }`) to drastically reduce data transfer and memory overhead during full memory scans.
+
+## 2026-06-04 - Global MongoDB Connection Pooling
+**Learning:** Initializing `MongoClient` per-request via `new MongoClient(mongoUri)` and immediately awaiting `.connect()` is highly inefficient, establishing new TCP connections repeatedly and blocking the event loop.
+**Action:** Implemented a global connection pool using `let globalMongoClient = new MongoClient(mongoUri)`. Furthermore, assigning `db = globalMongoClient.db('...')` synchronously without explicitly awaiting `.connect()` leverages the Node.js MongoDB driver's internal queueing and buffering system, ensuring safe query execution while offloading the connection latency from the critical path of individual requests. Also ensured we do not close the `dbClient` using `dbClient.close()` after each connection ends, so that the connections persist and the driver's connection pool remains intact across the application lifecycle.
