@@ -77,6 +77,7 @@
         overflow-x: hidden;
       }
 
+
       .serif-header {
         font-family: 'Playfair Display', 'Noto Serif JP', serif;
         letter-spacing: 0.05em;
@@ -386,9 +387,134 @@
       .text-xxs {
         font-size: 0.65rem;
       }
+
+      /* 📱 Mobile Optimized Adjustments */
+      @media (max-width: 640px) {
+        html {
+          font-size: 15.5px !important; /* Bump up base text readability on mobile */
+        }
+        
+        body {
+          line-height: 1.8;
+          padding: 0.5rem !important; /* Slim down container outer padding for wider content area */
+        }
+        
+        #mainContainer {
+          padding: 1.25rem 1rem !important; /* Optimal touch container spacing */
+          border-radius: 20px !important;
+        }
+
+        /* Mobile setting sheet configuration */
+        #settingsPanel {
+          position: fixed !important;
+          top: auto !important;
+          right: 0 !important;
+          bottom: 0 !important;
+          left: 0 !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          border-radius: 24px 24px 0 0 !important;
+          transform: translateY(100%) scale(1) !important;
+          transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease !important;
+          opacity: 0;
+          pointer-events: none;
+          z-index: 100;
+          box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.3) !important;
+          padding: 1.5rem 1.25rem 2.5rem 1.25rem !important;
+        }
+        #settingsPanel.active-sheet {
+          transform: translateY(0) scale(1) !important;
+          opacity: 1 !important;
+          pointer-events: auto !important;
+        }
+        
+        /* Mobile interactive backdrop for bottom sheet */
+        .sheet-backdrop {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: rgba(0, 0, 0, 0.6);
+          backdrop-filter: blur(4px);
+          -webkit-backdrop-filter: blur(4px);
+          opacity: 0;
+          transition: opacity 0.3s ease;
+          pointer-events: none;
+          z-index: 90;
+        }
+        .sheet-backdrop.active {
+          opacity: 1;
+          pointer-events: auto;
+        }
+        
+        /* Thin indicator bar at top of sheet for pull-down affordance */
+        .sheet-drag-indicator {
+          width: 40px;
+          height: 4px;
+          background-color: var(--border-color);
+          border-radius: 9999px;
+          margin: -8px auto 16px auto;
+          opacity: 0.5;
+        }
+
+        /* Mobile specific bottom drawer layout adjustments */
+        #attachmentDrawer {
+          gap: 0.4rem !important;
+          display: flex !important;
+          flex-wrap: nowrap !important;
+          transition: max-width 0.3s ease-in-out, opacity 0.3s ease-in-out !important;
+        }
+        #attachmentDrawer.drawer-expanded {
+          flex-wrap: wrap !important;
+          max-width: 100% !important;
+        }
+        #attachmentDrawer button {
+          width: auto !important;
+          height: auto !important;
+          padding: 0.5rem 0.75rem !important;
+          border-radius: 12px !important;
+          border: 1px solid var(--border-color) !important;
+          background-color: var(--input-bg) !important;
+          display: inline-flex !important;
+          align-items: center;
+          justify-content: center;
+          gap: 0.35rem;
+        }
+        .mobile-label {
+          display: inline !important;
+          font-size: 0.7rem;
+          font-weight: 300;
+          color: var(--text-sub);
+        }
+      }
+
+      /* Desktop / Default styles */
+      .mobile-label {
+        display: none;
+      }
+      .sheet-backdrop {
+        display: none;
+      }
+      @media (max-width: 640px) {
+        .sheet-backdrop {
+          display: block;
+        }
+      }
+
+      /* Global Tactile feedback adjustments */
+      button:active, 
+      .control-pill:active, 
+      .media-circle-btn:active,
+      .related-node-card:active {
+        transform: scale(0.96) translateY(0.5px) !important;
+        opacity: 0.85;
+      }
     </style>
   </head>
   <body class="flex items-center justify-center p-3 sm:p-6 relative">
+    <!-- Bottom Sheet Backdrop for Mobile settings -->
+    <div id="sheetBackdrop" class="sheet-backdrop" onclick="closeSettingsPanel()"></div>
     
     <!-- Equilibrium Sphere (Visual Metaphor) -->
     <div class="equilibrium-sphere">
@@ -399,7 +525,7 @@
     </div>
 
     <!-- Main Container -->
-    <div class="w-full max-w-lg glass-container p-4 sm:p-8 rounded-2xl sm:rounded-3xl relative z-10">
+    <div id="mainContainer" class="w-full max-w-lg glass-container p-4 sm:p-8 rounded-2xl sm:rounded-3xl relative z-10 transition-all duration-300">
       
       <!-- Header & Controllers responsive container -->
       <div class="flex flex-row justify-between items-start mb-6 sm:mb-8 pr-20 sm:pr-28 relative">
@@ -411,7 +537,7 @@
         </div>
         
         <!-- Unified Settings Controller (Settings Icon & Floating Canvas Panel) -->
-        <div class="absolute top-0 right-0 animate-fade-in" style="z-index: 30;">
+        <div id="settingsWrapper" class="absolute top-0 right-0 animate-fade-in" style="z-index: 30;">
           <button onclick="toggleSettingsPanel(event)" class="control-pill focus:outline-none flex items-center justify-center transition-all duration-300 hover:scale-105" id="btnSettings" style="width: 2.25rem; height: 2.25rem; padding: 0; border-radius: 9999px; border-color: var(--border-color);" title="Settings">
             <svg class="w-4.5 h-4.5 transition-transform duration-300" id="settingsIconSvg" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.43l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.991l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.645-.869l.214-1.28z"></path>
@@ -421,6 +547,8 @@
 
           <!-- Floating Settings Panel (Canvas) -->
           <div id="settingsPanel" class="absolute top-11 right-0 w-64 p-4 rounded-2xl shadow-2xl border transition-all duration-300 transform scale-95 opacity-0 pointer-events-none z-50 text-xs" style="background-color: var(--card-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-color: var(--border-color); color: var(--text-main);">
+            <!-- Mobile Sheet drag handle indicator -->
+            <div class="sheet-drag-indicator" onclick="closeSettingsPanel()"></div>
             <div class="flex items-center justify-between mb-3.5 pb-2 border-b border-dashed" style="border-color: var(--border-color);">
               <span class="font-semibold tracking-widest uppercase text-xxs" id="lblSettingsTitle">Settings / 設定</span>
               <button onclick="closeSettingsPanel()" class="opacity-50 hover:opacity-100 transition-opacity focus:outline-none">
@@ -536,31 +664,35 @@
               <div id="attachmentDrawer" class="flex items-center space-x-2 opacity-0 max-w-0 overflow-hidden transition-all duration-300 ease-in-out">
                 <!-- Camera Button -->
                 <button onclick="document.getElementById('cameraAttachment').click()" class="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-black/5 dark:hover:bg-white/5 focus:outline-none" style="color: var(--text-sub);" title="Camera">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"></path>
                     <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z"></path>
                   </svg>
+                  <span id="labelCamera" class="mobile-label">Camera</span>
                 </button>
                 
                 <!-- Voice Button -->
                 <button onclick="document.getElementById('voiceAttachment').click()" class="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-black/5 dark:hover:bg-white/5 focus:outline-none" style="color: var(--text-sub);" title="Voice">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"></path>
                   </svg>
+                  <span id="labelVoice" class="mobile-label">Voice</span>
                 </button>
                 
                 <!-- File Button -->
                 <button onclick="document.getElementById('fileAttachment').click()" class="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-black/5 dark:hover:bg-white/5 focus:outline-none" style="color: var(--text-sub);" title="File">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
                   </svg>
+                  <span id="labelFile" class="mobile-label">File</span>
                 </button>
 
                 <!-- Link Button -->
                 <button onclick="toggleLinkInput()" class="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-black/5 dark:hover:bg-white/5 focus:outline-none" style="color: var(--text-sub);" title="Web Link">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"></path>
                   </svg>
+                  <span id="labelLink" class="mobile-label">Link</span>
                 </button>
               </div>
             </div>
@@ -667,10 +799,10 @@
             <canvas id="memoryMapCanvas" width="448" height="480" class="w-full block cursor-grab active:cursor-grabbing" style="min-height: 300px;"></canvas>
             
             <!-- Elegant alignment tools inside canvas -->
-            <div class="absolute bottom-3 right-3 flex space-x-1.5 opacity-80 hover:opacity-100 transition-opacity duration-300">
-              <button onclick="mapEngine.resetPositions()" id="btnMapAlign" class="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xxs tracking-widest transition-all border duration-300 font-medium hover:scale-102" style="background-color: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.15); color: #f1f5f9; font-size: 0.6rem; font-family: 'Playfair Display', 'Noto Serif JP', serif;">
+            <div class="absolute bottom-3 right-3 flex space-x-1.5 opacity-85 hover:opacity-100 transition-opacity duration-300">
+              <button onclick="mapEngine.resetPositions()" id="btnMapAlign" class="flex items-center space-x-1.5 px-3 py-1 text-xxs tracking-widest transition-all duration-300 active:scale-95 border font-light" style="background-color: rgba(12, 14, 20, 0.65); border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 4px; color: rgba(241, 245, 249, 0.95); font-family: 'Noto Serif JP', 'Playfair Display', serif; font-size: 0.6rem; box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);">
                 <!-- Tiny minimalist reload/arrows icon -->
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3 w-3 stroke-current">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.25" stroke="currentColor" class="h-3 w-3 stroke-current opacity-70">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
                 </svg>
                 <span id="btnMapAlignText">ALIGN</span>
@@ -797,27 +929,49 @@
 
       // Auth UI Handlers
       function openAuthModal() {
+        console.log("🔑 [Auth Modal] openAuthModal() triggered.");
         const modal = document.getElementById('authModal');
+        console.log("🔑 [Auth Modal] Found modal element:", modal);
         if (modal) {
-          modal.classList.remove('pointer-events-none', 'opacity-0');
-          modal.classList.add('pointer-events-auto', 'opacity-100');
+          modal.classList.remove('hidden');
+          modal.classList.add('flex');
+          // Scale animation
           const card = modal.querySelector('.modal-card');
+          console.log("🔑 [Auth Modal] Found card element:", card);
           if (card) {
+            void card.offsetWidth; // Force reflow for transition
             card.classList.remove('scale-95');
             card.classList.add('scale-100');
+          }
+          // Dim and disable interaction with the main container
+          const mainContainer = document.getElementById('mainContainer');
+          console.log("🔑 [Auth Modal] Found mainContainer element:", mainContainer);
+          if (mainContainer) {
+            mainContainer.classList.add('pointer-events-none', 'opacity-30');
           }
         }
       }
 
       function closeAuthModal() {
+        console.log("🔑 [Auth Modal] closeAuthModal() triggered.");
         const modal = document.getElementById('authModal');
         if (modal) {
-          modal.classList.remove('pointer-events-auto', 'opacity-100');
-          modal.classList.add('pointer-events-none', 'opacity-0');
           const card = modal.querySelector('.modal-card');
           if (card) {
             card.classList.remove('scale-100');
             card.classList.add('scale-95');
+          }
+          
+          // Wait for transition before hiding modal
+          setTimeout(() => {
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+          }, 150);
+          
+          // Restore main container interaction and opacity
+          const mainContainer = document.getElementById('mainContainer');
+          if (mainContainer) {
+            mainContainer.classList.remove('pointer-events-none', 'opacity-30');
           }
         }
       }
@@ -954,7 +1108,11 @@
           mapTitle: "Semantic Memory Space",
           mapHelp: "Drag to explore. Long-press or tap again to load details.",
           btnMapAlign: "RESET",
-          searchPlaceholder: "Search semantic meaning..."
+          searchPlaceholder: "Search semantic meaning...",
+          labelCamera: "Camera",
+          labelVoice: "Voice",
+          labelFile: "File",
+          labelLink: "Link"
         },
         ja: {
           subtitle: "忘却の先にある思考の関係性を紡ぐ",
@@ -983,7 +1141,11 @@
           mapTitle: "記憶共鳴空間",
           mapHelp: "ドラッグで探索、長押しまたは再タップで詳細を表示",
           btnMapAlign: "初期配置",
-          searchPlaceholder: "意味で記憶を検索..."
+          searchPlaceholder: "意味で記憶を検索...",
+          labelCamera: "カメラ",
+          labelVoice: "音声",
+          labelFile: "ファイル",
+          labelLink: "リンク"
         }
       };
 
@@ -998,10 +1160,10 @@
         const icon = document.getElementById('drawerToggleIcon');
         if (isDrawerExpanded) {
           drawer.classList.remove('opacity-0', 'max-w-0');
-          drawer.classList.add('opacity-100', 'max-w-xs');
+          drawer.classList.add('opacity-100', 'max-w-xs', 'drawer-expanded');
           icon.style.transform = "rotate(45deg)";
         } else {
-          drawer.classList.remove('opacity-100', 'max-w-xs');
+          drawer.classList.remove('opacity-100', 'max-w-xs', 'drawer-expanded');
           drawer.classList.add('opacity-0', 'max-w-0');
           icon.style.transform = "rotate(0deg)";
         }
@@ -1067,6 +1229,16 @@
         if (uploadLabel) {
           uploadLabel.innerText = t.uploadText;
         }
+
+        // Mobile Attachment Option labels
+        const labelCamera = document.getElementById('labelCamera');
+        if (labelCamera) labelCamera.innerText = t.labelCamera;
+        const labelVoice = document.getElementById('labelVoice');
+        if (labelVoice) labelVoice.innerText = t.labelVoice;
+        const labelFile = document.getElementById('labelFile');
+        if (labelFile) labelFile.innerText = t.labelFile;
+        const labelLink = document.getElementById('labelLink');
+        if (labelLink) labelLink.innerText = t.labelLink;
 
         // Memory Map labels internationalization
         document.getElementById('uiMapTitle').innerText = t.mapTitle;
@@ -1145,16 +1317,19 @@
         if (event) event.stopPropagation();
         const panel = document.getElementById('settingsPanel');
         const icon = document.getElementById('settingsIconSvg');
+        const backdrop = document.getElementById('sheetBackdrop');
         isSettingsPanelOpen = !isSettingsPanelOpen;
         
         if (isSettingsPanelOpen) {
           panel.classList.remove('pointer-events-none', 'scale-95', 'opacity-0');
-          panel.classList.add('scale-100', 'opacity-100');
+          panel.classList.add('scale-100', 'opacity-100', 'active-sheet');
+          if (backdrop) backdrop.classList.add('active');
           icon.style.transform = 'rotate(45deg)';
           updateSettingsUI();
         } else {
-          panel.classList.remove('scale-100', 'opacity-100');
+          panel.classList.remove('scale-100', 'opacity-100', 'active-sheet');
           panel.classList.add('scale-95', 'opacity-0', 'pointer-events-none');
+          if (backdrop) backdrop.classList.remove('active');
           icon.style.transform = 'rotate(0deg)';
         }
       }
@@ -1162,11 +1337,13 @@
       function closeSettingsPanel() {
         const panel = document.getElementById('settingsPanel');
         const icon = document.getElementById('settingsIconSvg');
+        const backdrop = document.getElementById('sheetBackdrop');
         isSettingsPanelOpen = false;
         if (panel) {
-          panel.classList.remove('scale-100', 'opacity-100');
+          panel.classList.remove('scale-100', 'opacity-100', 'active-sheet');
           panel.classList.add('scale-95', 'opacity-0', 'pointer-events-none');
         }
+        if (backdrop) backdrop.classList.remove('active');
         if (icon) icon.style.transform = 'rotate(0deg)';
       }
 
@@ -1750,6 +1927,13 @@
           this.lastTapTime = 0; // For mobile double-tap detail load detection
           this.longPressTimeout = null; // For mobile long-press detail load detection
           
+          // Camera & Pan Inertia vectors for physics stabilization
+          this.cameraVx = 0;
+          this.cameraVy = 0;
+          this.panVx = 0;
+          this.panVy = 0;
+          this.ripple = null;
+          
           // Setup High-DPI Resolution & Responsiveness
           this.setupDpr();
           this.resizeListener = () => this.setupDpr();
@@ -1773,27 +1957,49 @@
           this.lastMouseY = 0;
           this.lastTouchDist = 0; // For pinch-to-zoom
           
-          // Generate background 3D stars for deep space aesthetics (dusty micro-stars in Aurora tints)
+          // Generate background 3D stars and cosmic dust for deep space organic nebulae
           this.backgroundStars = [];
-          for (let i = 0; i < 300; i++) {
-            // Emerald mint, turquoise cyan, or clean white tints
+          for (let i = 0; i < 500; i++) {
             let colorStr = "rgba(255, 255, 255, ";
             const rand = Math.random();
-            if (rand > 0.7) {
-              colorStr = "rgba(167, 243, 208, "; // Emerald Mint
-            } else if (rand > 0.4) {
-              colorStr = "rgba(165, 243, 252, "; // Turquoise Cyan
+            if (rand > 0.85) {
+              colorStr = "rgba(167, 243, 208, "; // Bioluminescent Emerald Mint
+            } else if (rand > 0.65) {
+              colorStr = "rgba(165, 243, 252, "; // Cosmic Cyan
+            } else if (rand > 0.45) {
+              colorStr = "rgba(244, 143, 177, "; // Organic Soft Pink-Purple
+            } else if (rand > 0.30) {
+              colorStr = "rgba(187, 150, 255, "; // Astral Purple-Lavender
             }
+            
+            // Nebula Dust clouds (slightly larger, extremely faint gas puff particles)
+            const isDust = Math.random() > 0.88;
+            const size = isDust 
+              ? Math.random() * 8.0 + 3.0 // 3px to 11px soft puff
+              : Math.random() * 0.7 + 0.15; // 0.15px to 0.85px micro star
+              
             this.backgroundStars.push({
-              x: Math.random() * 1000 - 500,
-              y: Math.random() * 1000 - 500,
-              z: Math.random() * 1000 - 500,
-              size: Math.random() * 0.5 + 0.2, // 0.2px ~ 0.7px
+              x: Math.random() * 1200 - 600,
+              y: Math.random() * 1200 - 600,
+              z: Math.random() * 1200 - 600,
+              size: size,
+              isDust: isDust,
               twinklePhase: Math.random() * Math.PI * 2,
-              twinkleSpeed: Math.random() * 1.2 + 0.3, // Slower, natural breath
+              twinkleSpeed: isDust ? Math.random() * 0.4 + 0.1 : Math.random() * 1.5 + 0.4, 
               color: colorStr
             });
           }
+          
+          // Load background image for deep space nebula
+          this.bgImage = new Image();
+          this.bgImage.src = 'img/background.png';
+          this.bgImageLoaded = false;
+          this.bgImage.onload = () => {
+            this.bgImageLoaded = true;
+          };
+          this.bgImage.onerror = () => {
+            console.warn("⚠️ Failed to load background image: img/background.png");
+          };
           
           this.initEvents();
           this.startSimulation();
@@ -1893,6 +2099,12 @@
             const baseRadius = id === activeEngramId ? 18 : 12;
             const radius = Math.min(baseRadius + (mass * 2.5), 45); // Max radius cap
             
+            // Organic biological parameters for node core organelles
+            const randomSeed = Math.sin(idx * 4567.89); // Deterministic pseudo-random seed based on index
+            const rotationSpeed = (0.25 + Math.abs(randomSeed) * 0.45) * (randomSeed > 0 ? 1 : -1);
+            const initialOffset = Math.abs(randomSeed) * Math.PI * 2;
+            const orbitDistRatio = 0.22 + Math.abs(Math.cos(idx)) * 0.15; // Radius orbit ratio variation
+            
             this.nodes.push({
               id: id,
               text: text,
@@ -1906,7 +2118,12 @@
               radius: radius,
               mass: mass,
               model: e.metadata && e.metadata.model || "",
-              tags: e.metadata && e.metadata.tags || []
+              tags: e.metadata && e.metadata.tags || [],
+              
+              // Organic variables
+              rotationSpeed: rotationSpeed,
+              initialOffset: initialOffset,
+              orbitDistRatio: orbitDistRatio
             });
           });
           
@@ -2122,9 +2339,38 @@
             n.y = Math.max(padYTop, Math.min(this.height - padYBottom, n.y));
             n.z = Math.max(-150, Math.min(150, n.z)); // Depth boundary
           });
+
+          // Apply camera and pan inertias when not actively dragging
+          if (!this.isDraggingCamera && !this.draggedNode) {
+            this.cameraAngleY += this.cameraVx;
+            this.cameraAngleX += this.cameraVy;
+            this.cameraVx *= 0.92; // Damp Y rotation velocity
+            this.cameraVy *= 0.92; // Damp X rotation velocity
+          }
+          if (!this.isPanningCamera && !this.draggedNode) {
+            this.panX += this.panVx;
+            this.panY += this.panVy;
+            this.panVx *= 0.92; // Damp pan X velocity
+            this.panVy *= 0.92; // Damp pan Y velocity
+          }
         }
 
         draw() {
+          // Draw tap ripple animation if active
+          if (this.ripple && this.ripple.alpha > 0.01) {
+            this.ctx.save();
+            this.ctx.beginPath();
+            this.ctx.arc(this.ripple.x, this.ripple.y, this.ripple.radius, 0, Math.PI * 2);
+            this.ctx.strokeStyle = `rgba(167, 243, 208, ${this.ripple.alpha})`; // Light bio-mint ripple
+            this.ctx.lineWidth = 2 * this.ripple.alpha;
+            this.ctx.stroke();
+            this.ctx.restore();
+            
+            // Step ripple animation
+            this.ripple.radius += (this.ripple.maxRadius - this.ripple.radius) * 0.12;
+            this.ripple.alpha *= 0.9;
+          }
+
           if (this.nodes.length === 0) {
             this.ctx.fillStyle = "#000000";
             this.ctx.fillRect(0, 0, this.width, this.height);
@@ -2187,23 +2433,67 @@
             };
           };
 
-          // Background is always solid black to create deep space contrast
-          this.ctx.fillStyle = "#000000";
-          this.ctx.fillRect(0, 0, this.width, this.height);
+          // Render cosmic background image if loaded, fallback to solid black
+          if (this.bgImageLoaded) {
+            this.ctx.save();
+            this.ctx.translate(centerX, centerY);
+            
+            // 左右回転（cameraAngleY）に伴う、全天背景ドームのねじれ回転を適用
+            const rotation = this.cameraAngleY * 0.25;
+            this.ctx.rotate(rotation);
+            
+            // カメラ角度に連動したスクロール量
+            const bgW = this.bgImage.width * 0.8;
+            const bgH = this.bgImage.height * 0.8;
+            let offsetX = (-this.cameraAngleY * 180) % bgW;
+            let offsetY = (-this.cameraAngleX * 180) % bgH;
+            
+            // タイル状に無限に敷き詰めて描画 (切れ目は絶対に発生しません)
+            // 回転による対角線の広がりをカバーするため、描画範囲を十分に広く取る
+            const startX = offsetX - bgW * 2;
+            const endX = this.width + bgW;
+            const startY = offsetY - bgH * 2;
+            const endY = this.height + bgH;
+            
+            for (let x = startX; x < endX; x += bgW) {
+              for (let y = startY; y < endY; y += bgH) {
+                this.ctx.drawImage(this.bgImage, x - centerX, y - centerY, bgW, bgH);
+              }
+            }
+            this.ctx.restore();
+            
+            // Blend with a thin black overlay for text readability and depth contrast
+            this.ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
+            this.ctx.fillRect(0, 0, this.width, this.height);
+          } else {
+            this.ctx.fillStyle = "#000000";
+            this.ctx.fillRect(0, 0, this.width, this.height);
+          }
 
-          // Draw Space Parallax Starfield
+          // Draw Space Parallax Starfield & Cosmic Dust Clouds
           if (this.backgroundStars) {
             this.ctx.save();
             this.backgroundStars.forEach(star => {
               const proj = project(centerX + star.x, centerY + star.y, star.z);
               if (proj.visible && proj.scale > 0 && proj.x >= 0 && proj.x <= this.width && proj.y >= 0 && proj.y <= this.height) {
                 // Twinkle alpha variation
-                const twinkle = 0.45 + 0.55 * Math.sin(time * star.twinkleSpeed + star.twinklePhase);
+                const twinkle = 0.35 + 0.65 * Math.sin(time * star.twinkleSpeed + star.twinklePhase);
                 const scaleAlpha = Math.min(1.0, proj.scale * proj.scale);
-                this.ctx.fillStyle = star.color + (twinkle * scaleAlpha).toFixed(3) + ")";
-                this.ctx.beginPath();
-                this.ctx.arc(proj.x, proj.y, star.size * proj.scale, 0, Math.PI * 2);
-                this.ctx.fill();
+                
+                if (star.isDust) {
+                  // Nebula gas puff
+                  const dustAlpha = (twinkle * 0.015 * scaleAlpha).toFixed(4);
+                  this.ctx.fillStyle = star.color + dustAlpha + ")";
+                  this.ctx.beginPath();
+                  this.ctx.arc(proj.x, proj.y, star.size * proj.scale, 0, Math.PI * 2);
+                  this.ctx.fill();
+                } else {
+                  // Point star
+                  this.ctx.fillStyle = star.color + (twinkle * scaleAlpha).toFixed(3) + ")";
+                  this.ctx.beginPath();
+                  this.ctx.arc(proj.x, proj.y, star.size * proj.scale, 0, Math.PI * 2);
+                  this.ctx.fill();
+                }
               }
             });
             this.ctx.restore();
@@ -2268,37 +2558,71 @@
             }
           });
           
-          // 3. Draw Links (Minimalist clean paths of light with perspective, always using space colors)
+           // 3. Draw Links (Intricate glowing bio-astro filaments, blending neural axons and cosmic dust)
           this.links.forEach(l => {
             const pA = projMap.get(l.source);
             const pB = projMap.get(l.target);
             if (!pA || !pB) return;
             
             const isHighlight = l.source === activeEngramId || l.target === activeEngramId;
-            
-            this.ctx.beginPath();
-            this.ctx.moveTo(pA.x, pA.y);
-            this.ctx.lineTo(pB.x, pB.y);
-            
             const avgScale = (pA.scale + pB.scale) / 2;
-            let colorStr = "";
             
+            // Calculate a single control point for a smooth curve offset based on node ID hash
+            const midX = (pA.x + pB.x) / 2;
+            const midY = (pA.y + pB.y) / 2;
+            
+            const hashCode = (l.source.charCodeAt(0) + l.target.charCodeAt(l.target.length - 1)) % 10;
+            const curveOffset = (18 + hashCode * 2.5) * (hashCode % 2 === 0 ? 1 : -1) * avgScale;
+            
+            const dx = pB.x - pA.x;
+            const dy = pB.y - pA.y;
+            const len = Math.sqrt(dx * dx + dy * dy) || 1;
+            const nx = -dy / len;
+            const ny = dx / len;
+            
+            const cpX = midX + nx * curveOffset;
+            const cpY = midY + ny * curveOffset;
+            
+            let colorStr = "";
             if (isHighlight) {
-              colorStr = "rgba(200, 220, 215, "; // Soft slated mint for highlighted link
+              colorStr = "rgba(220, 245, 235, "; // Sparkling bio-slated mint
             } else {
               if (l.strength >= 0.85) {
-                colorStr = "rgba(120, 150, 140, "; // Strong link - slated mint green
+                colorStr = "rgba(110, 165, 150, "; // Teal-green filament
               } else if (l.strength >= 0.70) {
-                colorStr = "rgba(115, 140, 150, "; // Medium link - slated cyan
+                colorStr = "rgba(110, 150, 165, "; // Cosmic cyan filament
               } else {
-                colorStr = "rgba(130, 120, 150, "; // Weak link - dusty lavender violet
+                colorStr = "rgba(155, 130, 170, "; // Deep lavender filament
               }
             }
             
-            const alpha = isHighlight ? 0.65 : (l.strength * 0.12);
+            const alpha = isHighlight ? 0.55 : (l.strength * 0.16);
+            
+            // Draw Main Filament Curve
+            this.ctx.beginPath();
+            this.ctx.moveTo(pA.x, pA.y);
+            this.ctx.quadraticCurveTo(cpX, cpY, pB.x, pB.y);
             this.ctx.strokeStyle = colorStr + (alpha * avgScale * avgScale) + ")";
-            this.ctx.lineWidth = (isHighlight ? 1.2 : 0.6) * avgScale;
+            this.ctx.lineWidth = (isHighlight ? 1.0 : 0.5) * avgScale;
             this.ctx.stroke();
+            
+            // Draw moving bio-astral dust particles along the curved filament
+            const numParticles = isHighlight ? 4 : 2;
+            for (let i = 0; i < numParticles; i++) {
+              // Time-synced looping position parameter [0, 1]
+              const t = ((time * 0.18) + (i / numParticles)) % 1.0;
+              const mt = 1 - t;
+              
+              // Quadratic Bezier interpolation
+              const px = mt * mt * pA.x + 2 * mt * t * cpX + t * t * pB.x;
+              const py = mt * mt * pA.y + 2 * mt * t * cpY + t * t * pB.y;
+              
+              // Core particle glow
+              this.ctx.beginPath();
+              this.ctx.arc(px, py, (isHighlight ? 1.35 : 0.75) * avgScale, 0, Math.PI * 2);
+              this.ctx.fillStyle = colorStr + (alpha * 1.8 * avgScale).toFixed(3) + ")";
+              this.ctx.fill();
+            }
           });
           
           // 4. Sort nodes by scale ASCENDING (further away is drawn first / Painter's Algorithm)
@@ -2322,105 +2646,150 @@
             this.ctx.beginPath();
             
             if (isHover || isActive || isStar || mass > 0) {
-              // Self-luminous celestial radial gradient (avoiding harsh metallic reflections)
-              const sphGrad = this.ctx.createRadialGradient(
-                p.x, p.y, 0, // Center glowing core
-                p.x, p.y, n.radius * scale // Outer atmospheric boundary
-              );
+              const rScale = n.radius * scale;
               
-              let shadowColor = "rgba(0, 0, 0, 0)";
-              let glowSize = 0;
-              
-              if (isActive || isStar) {
-                // Breathing glow pulsing for selected node (18px-28px at 3Hz), regular twinkle for others
-                glowSize = (isActive ? (18 + 10 * Math.sin(time * 3.0 + n.x * 1.5)) : 8 + mass * 2) * scale * twinkle;
+              if (isActive) {
+                // 1. Central White Supernova Core (Cell Nucleus)
+                // A. Blinding core glow
+
                 
-                if (isActive) {
-                  // Focus Node: Dazzling Luminous White Core with breathing core twinkle
-                  shadowColor = "rgba(255, 255, 255, 0.95)";
-                  sphGrad.addColorStop(0, `rgba(255, 255, 255, ${activeTwinkle})`);
-                  sphGrad.addColorStop(0.3, `rgba(240, 245, 250, ${0.9 * activeTwinkle})`); // Softest white-blue
-                  sphGrad.addColorStop(0.75, `rgba(200, 215, 220, ${0.7 * activeTwinkle})`); // Soft slated azure
-                  sphGrad.addColorStop(1, "rgba(15, 23, 42, 0.0)"); // Outer edge fades completely to black space
-                } else if (mass >= 5) {
-                  // Supermassive Aurora Green Star (Chic slated green instead of raw blue)
-                  shadowColor = "rgba(45, 120, 115, 0.75)"; // Slated green glow
-                  sphGrad.addColorStop(0, "rgba(240, 249, 248, 1.0)"); // Pale mint white core
-                  sphGrad.addColorStop(0.35, "rgba(45, 120, 115, 0.9)"); // Slated green
-                  sphGrad.addColorStop(0.7, "rgba(25, 75, 72, 0.6)"); // Dark teal
-                  sphGrad.addColorStop(1, "rgba(15, 23, 42, 0.0)"); // Outer edge fades completely to black space
-                } else if (mass >= 3) {
-                  // Warm Aurora Magenta/Gold Star (Chic smoky plum instead of raw orange)
-                  shadowColor = "rgba(167, 109, 146, 0.65)"; // Plum glow
-                  sphGrad.addColorStop(0, "rgba(255, 244, 255, 1.0)"); // Pale pink white core
-                  sphGrad.addColorStop(0.4, "rgba(167, 109, 146, 0.9)"); // Smoky plum
-                  sphGrad.addColorStop(0.75, "rgba(100, 65, 88, 0.6)"); // Dark plum
-                  sphGrad.addColorStop(1, "rgba(15, 23, 42, 0.0)"); // Outer edge fades completely to black space
-                }
-              } else if (isHover && scale > 0.8) {
-                glowSize = 8 * scale;
-                shadowColor = "rgba(255, 255, 255, 0.35)";
-                sphGrad.addColorStop(0, "rgba(255, 255, 255, 1.0)");
-                sphGrad.addColorStop(0.4, "rgba(139, 122, 186, 0.85)"); // Dusty violet hover
-                sphGrad.addColorStop(1, "rgba(15, 23, 42, 0.0)");
-              } else {
-                // Standard planet with soft amethyst purple gas shading (Chic dusty violet)
-                sphGrad.addColorStop(0, "rgba(245, 245, 250, 1.0)"); // Pale lavender
-                sphGrad.addColorStop(0.4, "rgba(139, 122, 186, 0.85)"); // Dusty violet
-                sphGrad.addColorStop(1, "rgba(15, 23, 42, 0.0)"); // Outer edge fades completely to black space
-              }
-              
-              // Draw highly transparent rainbow prism halo around celestial star cores (Animated Twinkle)
-              if (isActive || isStar) {
-                this.ctx.save();
-                // Slim down prism radius to make it hover close to the core (1.5x - 1.8x)
-                const prismRadius = n.radius * scale * (isActive ? 1.8 : 1.5) * twinkle;
-                const pGrad = this.ctx.createRadialGradient(
-                  p.x, p.y, n.radius * scale * 0.8,
-                  p.x, p.y, prismRadius
-                );
-                // Faster twinkle cycle specifically for the prism specter (prismTwinkle)
-                const prismTwinkle = 0.35 + 0.65 * Math.sin(time * 6.5 + n.x * 3.0);
+                const coreGrad = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rScale);
+                coreGrad.addColorStop(0, "rgba(255, 255, 255, 1.0)");
+                coreGrad.addColorStop(0.2, `rgba(255, 255, 255, ${activeTwinkle})`);
+                coreGrad.addColorStop(0.5, `rgba(240, 248, 255, ${0.8 * activeTwinkle})`); 
+                coreGrad.addColorStop(0.8, `rgba(165, 243, 252, ${0.45 * activeTwinkle})`); 
+                coreGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
                 
-                pGrad.addColorStop(0, "rgba(255, 255, 255, 0)");
-                pGrad.addColorStop(0.15, `rgba(96, 165, 250, ${(0.03 * prismTwinkle).toFixed(3)})`); // Cyan/Blue
-                pGrad.addColorStop(0.4, `rgba(168, 85, 247, ${(0.025 * prismTwinkle).toFixed(3)})`); // Purple
-                pGrad.addColorStop(0.65, `rgba(244, 63, 94, ${(0.015 * prismTwinkle).toFixed(3)})`); // Pink/Red
-                pGrad.addColorStop(0.85, `rgba(253, 224, 71, ${(0.004 * prismTwinkle).toFixed(3)})`); // Yellow/Gold - extremely faint before fade-out
-                pGrad.addColorStop(1, "rgba(0, 0, 0, 0)"); // Fade completely to transparent black to eliminate hard border lines
-                
-                this.ctx.fillStyle = pGrad;
+                this.ctx.fillStyle = coreGrad;
                 this.ctx.beginPath();
-                this.ctx.arc(p.x, p.y, prismRadius, 0, Math.PI * 2);
+                this.ctx.arc(p.x, p.y, rScale, 0, Math.PI * 2);
                 this.ctx.fill();
+                
+                // B. Biomimetic Nested Membranes (Cell envelope lines)
+                this.ctx.save();
+                this.ctx.strokeStyle = `rgba(255, 255, 255, ${0.35 * activeTwinkle})`;
+                this.ctx.lineWidth = 0.5 * scale;
+                for (let i = 0; i < 3; i++) {
+                  const ringRadius = rScale * (0.75 + i * 0.12 + 0.03 * Math.sin(time * 2.2 + i));
+                  this.ctx.beginPath();
+                  this.ctx.arc(p.x, p.y, ringRadius, 0, Math.PI * 2);
+                  this.ctx.stroke();
+                }
                 this.ctx.restore();
-              }
-              
-              this.ctx.arc(p.x, p.y, n.radius * scale, 0, Math.PI * 2);
-              
-              if (glowSize > 0) {
-                this.ctx.shadowColor = shadowColor;
-                this.ctx.shadowBlur = glowSize;
               } else {
-                this.ctx.shadowBlur = 0;
+                const charCode = n.id.charCodeAt(n.id.length - 1) || 0;
+                const isTeal = (mass >= 5) || (charCode % 2 === 0);
+                
+                if (isTeal) {
+                  // 2. Teal-green Bioluminescent Cell Node
+                  // A. Iridescent double membrane bilayer
+                  this.ctx.save();
+                  this.ctx.strokeStyle = `rgba(167, 243, 208, ${0.42 * twinkle})`; 
+                  this.ctx.lineWidth = 0.55 * scale;
+                  
+                  // Outer membrane
+                  this.ctx.beginPath();
+                  this.ctx.arc(p.x, p.y, rScale, 0, Math.PI * 2);
+                  this.ctx.stroke();
+                  
+                  // Inner membrane
+                  this.ctx.beginPath();
+                  this.ctx.arc(p.x, p.y, rScale * 0.88, 0, Math.PI * 2);
+                  this.ctx.stroke();
+                  this.ctx.restore();
+                  
+                  // B. Internal cell liquid volume gradient
+                  const tealGrad = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rScale * 0.85);
+                  // 不透明度を高めにして、宇宙背景に埋もれない立体感・体積感を付与
+                  tealGrad.addColorStop(0, `rgba(45, 120, 115, ${0.9 * twinkle})`);
+                  tealGrad.addColorStop(0.5, `rgba(25, 75, 72, ${0.65 * twinkle})`);
+                  tealGrad.addColorStop(0.9, `rgba(15, 45, 43, ${0.45 * twinkle})`);
+                  tealGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+                  this.ctx.fillStyle = tealGrad;
+                  this.ctx.beginPath();
+                  this.ctx.arc(p.x, p.y, rScale * 0.88, 0, Math.PI * 2);
+                  this.ctx.fill();
+                  
+                  // C. Bioluminescent core organelles (small rotating light particles inside)
+                  this.ctx.save();
+                  const numTealOrganelles = 3;
+                  const rotSpeed = n.rotationSpeed !== undefined ? n.rotationSpeed : 0.45;
+                  const initOffset = n.initialOffset !== undefined ? n.initialOffset : 0;
+                  const orbitDist = rScale * (n.orbitDistRatio !== undefined ? n.orbitDistRatio : 0.32);
+                   
+                  for (let i = 0; i < numTealOrganelles; i++) {
+                     // Unique speed, unique direction, unique initial angle
+                     const angleOffset = (i * Math.PI * 2 / numTealOrganelles) + (time * rotSpeed) + initOffset;
+                     // Add micro-wobble (breathing organic size fluctuation)
+                     const wobble = 1.0 + 0.15 * Math.sin(time * 1.5 + i + initOffset);
+                     const ox = Math.cos(angleOffset) * orbitDist * wobble;
+                     const oy = Math.sin(angleOffset) * orbitDist * wobble;
+                     
+                     const dotGrad = this.ctx.createRadialGradient(p.x + ox, p.y + oy, 0, p.x + ox, p.y + oy, rScale * 0.23);
+                     dotGrad.addColorStop(0, "rgba(220, 252, 231, 0.95)");
+                     dotGrad.addColorStop(0.5, "rgba(52, 211, 153, 0.7)"); // Bright Mint
+                     dotGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+                     
+                     this.ctx.fillStyle = dotGrad;
+                     this.ctx.beginPath();
+                     this.ctx.arc(p.x + ox, p.y + oy, rScale * 0.23, 0, Math.PI * 2);
+                     this.ctx.fill();
+                  }
+                  this.ctx.restore();
+                } else {
+                  // 3. Pink-purple Translucent cosmic organelle Node
+                  // A. Outer bilayer membrane
+                  this.ctx.save();
+                  this.ctx.strokeStyle = `rgba(244, 143, 177, ${0.38 * twinkle})`; 
+                  this.ctx.lineWidth = 0.55 * scale;
+                  this.ctx.beginPath();
+                  this.ctx.arc(p.x, p.y, rScale, 0, Math.PI * 2);
+                  this.ctx.stroke();
+                  this.ctx.restore();
+                  
+                  // B. Cosmic gas and dust internal organelles gradient
+                  const pinkGrad = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rScale);
+                  // 不透明度を高めにして、宇宙背景に埋もれない立体感・体積感を付与
+                  pinkGrad.addColorStop(0, `rgba(255, 235, 243, ${0.92 * twinkle})`); 
+                  pinkGrad.addColorStop(0.45, `rgba(167, 109, 146, ${0.72 * twinkle})`); 
+                  pinkGrad.addColorStop(0.85, `rgba(90, 55, 78, ${0.35 * twinkle})`); 
+                  pinkGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+                  
+                  this.ctx.fillStyle = pinkGrad;
+                  this.ctx.beginPath();
+                  this.ctx.arc(p.x, p.y, rScale, 0, Math.PI * 2);
+                  this.ctx.fill();
+                  
+                  // C. Far-off star clusters inside pink nebula node
+                  this.ctx.save();
+                  this.ctx.fillStyle = `rgba(255, 255, 255, ${0.85 * twinkle})`;
+                  const initOffset = n.initialOffset !== undefined ? n.initialOffset : 0;
+                  const rotSpeed = n.rotationSpeed !== undefined ? n.rotationSpeed : 0.45;
+                  for (let i = 0; i < 4; i++) {
+                    // Use a stable seed parameter instead of dynamic coordinate 'n.x' to prevent jittering when nodes move
+                    const breath = Math.sin(time * 0.8 + i * 1.5 + initOffset);
+                    const angle = (i * Math.PI * 2 / 4) + (time * rotSpeed * 0.15) + initOffset;
+                    const orbitDist = rScale * 0.38 * (0.8 + 0.2 * breath);
+                    
+                    const sx = p.x + Math.cos(angle) * orbitDist;
+                    const sy = p.y + Math.sin(angle) * orbitDist;
+                    this.ctx.beginPath();
+                    this.ctx.arc(sx, sy, 0.75 * scale, 0, Math.PI * 2);
+                    this.ctx.fill();
+                  }
+                  this.ctx.restore();
+                }
               }
               
-              this.ctx.fillStyle = sphGrad;
-              this.ctx.fill();
-              this.ctx.shadowBlur = 0; // Reset shadow immediately
-              
-              // Draw Orbit Twinkle Aura for active node (Dashed circle replaced by breathing light)
+              // Draw Orbit Twinkle Aura for active node (Breathing light)
               if (isActive) {
                 this.ctx.save();
-                const auraTwinkle = 0.4 + 0.6 * Math.sin(time * 3.0 + n.x * 1.5); // Synced with core breathing twinkle (3Hz)
-                const auraRadius = n.radius * scale * (1.15 + 0.22 * Math.sin(time * 1.5)); // Breathing expansion/contraction
+                const auraTwinkle = 0.4 + 0.6 * Math.sin(time * 3.0 + n.x * 1.5);
+                const auraRadius = rScale * (1.18 + 0.22 * Math.sin(time * 1.5)); 
                 
-                const auraGrad = this.ctx.createRadialGradient(
-                  p.x, p.y, n.radius * scale * 0.9,
-                  p.x, p.y, auraRadius
-                );
-                auraGrad.addColorStop(0, `rgba(255, 255, 255, ${0.12 * auraTwinkle})`);
-                auraGrad.addColorStop(0.5, `rgba(200, 220, 215, ${0.06 * auraTwinkle})`); // Slated mint glow
+                const auraGrad = this.ctx.createRadialGradient(p.x, p.y, rScale * 0.9, p.x, p.y, auraRadius);
+                auraGrad.addColorStop(0, `rgba(255, 255, 255, ${0.15 * auraTwinkle})`);
+                auraGrad.addColorStop(0.5, `rgba(167, 243, 208, ${0.07 * auraTwinkle})`); 
                 auraGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
                 
                 this.ctx.fillStyle = auraGrad;
@@ -2431,33 +2800,24 @@
               }
               
             } else {
-              // Stardust (mass 0, inactive, non-hovered) - Replacing gray with dynamic aurora color shards
+              // Stardust (mass 0, inactive, non-hovered) - Simple quiet bio-astral dust particle
               const depthFog = Math.min(1.0, Math.max(0.15, scale * scale));
-              this.ctx.arc(p.x, p.y, n.radius * scale, 0, Math.PI * 2);
+              const rScale = n.radius * scale;
+              this.ctx.beginPath();
+              this.ctx.arc(p.x, p.y, rScale, 0, Math.PI * 2);
               
-              const stGrad = this.ctx.createRadialGradient(
-                p.x, p.y, 0,
-                p.x, p.y, n.radius * scale
-              );
-              
-              // Deterministically assign color category based on node ID character hash to avoid random frame flickering
+              const stGrad = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rScale);
               const charCode = n.id.charCodeAt(n.id.length - 1) || 0;
-              const colorType = charCode % 3;
               
-              if (colorType === 0) {
-                // Slated Mint stardust
-                stGrad.addColorStop(0, `rgba(180, 205, 195, ${0.9 * depthFog})`);
-                stGrad.addColorStop(1, `rgba(45, 120, 115, ${0.15 * depthFog})`);
-              } else if (colorType === 1) {
-                // Slated Cyan stardust
-                stGrad.addColorStop(0, `rgba(175, 195, 205, ${0.9 * depthFog})`);
-                stGrad.addColorStop(1, `rgba(45, 115, 120, ${0.15 * depthFog})`);
+              if (charCode % 2 === 0) {
+                // Teal-green dust
+                stGrad.addColorStop(0, `rgba(167, 243, 208, ${0.62 * depthFog})`);
+                stGrad.addColorStop(1, `rgba(45, 120, 115, ${0.06 * depthFog})`);
               } else {
-                // Dusty Violet stardust
-                stGrad.addColorStop(0, `rgba(195, 185, 205, ${0.9 * depthFog})`);
-                stGrad.addColorStop(1, `rgba(139, 122, 186, ${0.15 * depthFog})`);
+                // Pink-purple dust
+                stGrad.addColorStop(0, `rgba(244, 143, 177, ${0.62 * depthFog})`);
+                stGrad.addColorStop(1, `rgba(167, 109, 146, ${0.06 * depthFog})`);
               }
-              
               this.ctx.fillStyle = stGrad;
               this.ctx.fill();
             }
@@ -2517,20 +2877,26 @@
           
           // 6. Draw Canvas HUD Legend & Scale (On the left side for functional measurement of semantic distances)
           this.ctx.save();
+          this.ctx.textAlign = "left";
+          this.ctx.textBaseline = "alphabetic";
           
           // Draw Vertical Link Legend (Top-Left)
-          const legendX = 20;
+          const legendX = 24;
           const legendY = 28;
           
-          this.ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
-          this.ctx.font = "italic 300 8px 'Playfair Display', sans-serif";
+          this.ctx.save();
+          this.ctx.shadowColor = "rgba(255, 255, 255, 0.4)";
+          this.ctx.shadowBlur = 4;
+          this.ctx.fillStyle = "rgba(255, 255, 255, 0.52)";
+          this.ctx.font = "italic 300 9px 'Playfair Display', sans-serif";
           this.ctx.textAlign = "left";
           this.ctx.fillText("RESONANCE", legendX, legendY - 8);
+          this.ctx.restore();
           
           const legendItems = [
-            { label: "Close", color: "rgba(120, 150, 140, 0.65)" },
-            { label: "Medium", color: "rgba(115, 140, 150, 0.4)" },
-            { label: "Distant", color: "rgba(130, 120, 150, 0.2)" }
+            { label: "Close", color: "rgba(110, 165, 150, 0.75)" },
+            { label: "Medium", color: "rgba(110, 150, 165, 0.5)" },
+            { label: "Distant", color: "rgba(155, 130, 170, 0.25)" }
           ];
           
           legendItems.forEach((item, idx) => {
@@ -2545,20 +2911,24 @@
             this.ctx.stroke();
             
             // Draw legend label
-            this.ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
-            this.ctx.font = "200 7.5px 'Noto Serif JP', sans-serif";
+            this.ctx.save();
+            this.ctx.textAlign = "left";
+            this.ctx.textBaseline = "alphabetic";
+            this.ctx.fillStyle = "rgba(255, 255, 255, 0.38)";
+            this.ctx.font = "300 8px 'Playfair Display', 'Noto Serif JP', sans-serif";
             this.ctx.fillText(item.label, legendX + 24, itemY + 7);
+            this.ctx.restore();
           });
           
           // Draw Horizontal Distance Scale Bar (Bottom-Left)
           const scaleBarWidth = 55;
-          const scaleX = 20;
+          const scaleX = 24;
           const scaleY = this.height - 35;
           
           // Scale represents semantic units relative to current zoom factor
           const semanticUnits = Math.round(100 / this.zoom);
           
-          this.ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+          this.ctx.strokeStyle = "rgba(255, 255, 255, 0.28)";
           this.ctx.lineWidth = 0.8;
           
           // Draw ruler scale brackets with division ticks (物差し目盛り)
@@ -2583,9 +2953,15 @@
           this.ctx.stroke();
           
           // Draw scale text label - changed from 'RU (Resonance Unit)' to 'Resonance Unit'
-          this.ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
-          this.ctx.font = "200 8.5px 'Playfair Display', sans-serif";
+          this.ctx.save();
+          this.ctx.textAlign = "left";
+          this.ctx.textBaseline = "alphabetic";
+          this.ctx.shadowColor = "rgba(255, 255, 255, 0.35)";
+          this.ctx.shadowBlur = 3;
+          this.ctx.fillStyle = "rgba(255, 255, 255, 0.42)";
+          this.ctx.font = "300 9px 'Playfair Display', sans-serif";
           this.ctx.fillText(`${semanticUnits} Resonance Unit`, scaleX, scaleY - 9);
+          this.ctx.restore();
           
           this.ctx.restore();
         }
@@ -2618,6 +2994,7 @@
             const centerX = this.width / 2;
             const centerY = this.height / 2;
             const focus = 300;
+            const isMobile = window.innerWidth <= 640;
             return this.nodes.find(n => {
               // Same project math to align hover hit test
               let rx = n.x - centerX;
@@ -2637,15 +3014,30 @@
               
               const dx = px - pos.x;
               const dy = py - pos.y;
-              return Math.sqrt(dx * dx + dy * dy) <= (n.radius * scale + 8);
+              
+              // Mobile touch targets require larger area padding (16px instead of 8px)
+              const hitPadding = isMobile ? 18 : 8;
+              return Math.sqrt(dx * dx + dy * dy) <= (n.radius * scale + hitPadding);
             });
           };
 
           // Mouse/Touch Down
           const onDown = (e) => {
+            // Ignore canvas interaction if auth modal is visible
+            const modal = document.getElementById('authModal');
+            if (modal && !modal.classList.contains('hidden')) {
+              return;
+            }
+
             const pos = getMousePos(e);
             const now = Date.now();
             const DOUBLE_TAP_DELAY = 300;
+            
+            // Reset velocity vectors on new down touch to stop ongoing inertias
+            this.cameraVx = 0;
+            this.cameraVy = 0;
+            this.panVx = 0;
+            this.panVy = 0;
             
             // Clear previous long press timer immediately to avoid double triggers
             if (this.longPressTimeout) {
@@ -2675,6 +3067,32 @@
               node.vy = 0;
               node.vz = 0;
               
+              // Project node coordinates to draw a ripple effect centered on it
+              const centerX = this.width / 2;
+              const centerY = this.height / 2;
+              const focus = 300;
+              let rx = node.x - centerX;
+              let ry = node.y - centerY;
+              let rz = node.z;
+              const cosY = Math.cos(this.cameraAngleY);
+              const sinY = Math.sin(this.cameraAngleY);
+              let x1 = rx * cosY - rz * sinY;
+              let z1 = rz * cosY + rx * sinY;
+              const cosX = Math.cos(this.cameraAngleX);
+              const sinX = Math.sin(this.cameraAngleX);
+              let y2 = ry * cosX - z1 * sinX;
+              const scale = (focus / (focus + (z1 * cosX + ry * sinX))) * this.zoom;
+              const px = centerX + x1 * scale + this.panX;
+              const py = centerY + y2 * scale + this.panY;
+
+              this.ripple = {
+                x: px,
+                y: py,
+                radius: node.radius * scale,
+                maxRadius: node.radius * scale * 2.5,
+                alpha: 0.8
+              };
+
               const isAlreadySelected = activeEngramId === node.id;
               activeEngramId = node.id;
               
@@ -2720,6 +3138,12 @@
 
           // Mouse/Touch Move
           const onMove = (e) => {
+            // Ignore canvas interaction if auth modal is visible
+            const modal = document.getElementById('authModal');
+            if (modal && !modal.classList.contains('hidden')) {
+              return;
+            }
+
             const pos = getMousePos(e);
             
             // Cancel long press timer immediately upon moving/dragging
@@ -2779,16 +3203,32 @@
               // Orbit Camera rotation (Removed pitch rotation constraints to allow full 360-degree free celestial spinning)
               const dx = pos.clientX - this.lastMouseX;
               const dy = pos.clientY - this.lastMouseY;
-              this.cameraAngleY += dx * 0.006;
-              this.cameraAngleX -= dy * 0.006;
+              const diffY = dx * 0.006;
+              const diffX = -dy * 0.006;
+              
+              this.cameraAngleY += diffY;
+              this.cameraAngleX += diffX;
+              
+              // Track dragging speed for velocity inertia
+              this.cameraVx = diffY * 0.45 + this.cameraVx * 0.55;
+              this.cameraVy = diffX * 0.45 + this.cameraVy * 0.55;
+              
               this.lastMouseX = pos.clientX;
               this.lastMouseY = pos.clientY;
             } else if (this.isPanningCamera) {
               // Pan camera movement
               const dx = pos.clientX - this.lastMouseX;
               const dy = pos.clientY - this.lastMouseY;
-              this.panX += dx * 0.75;
-              this.panY += dy * 0.75;
+              const diffX = dx * 0.75;
+              const diffY = dy * 0.75;
+              
+              this.panX += diffX;
+              this.panY += diffY;
+              
+              // Track panning speed for velocity inertia
+              this.panVx = diffX * 0.45 + this.panVx * 0.55;
+              this.panVy = diffY * 0.45 + this.panVy * 0.55;
+              
               this.lastMouseX = pos.clientX;
               this.lastMouseY = pos.clientY;
             } else {
@@ -3000,11 +3440,35 @@
       // Initialize mapping engine globally
       mapEngine = new SemanticMapEngine('memoryMapCanvas');
       mapEngine.loadAll();
+
+      // Dynamic settings panel layout adjusting based on viewport width
+      function adjustSettingsPanelParent() {
+        const panel = document.getElementById('settingsPanel');
+        const wrapper = document.getElementById('settingsWrapper');
+        if (!panel) return;
+        
+        const isMobile = window.innerWidth <= 640;
+        if (isMobile) {
+          if (panel.parentNode !== document.body) {
+            document.body.appendChild(panel);
+            console.log("📱 [Layout] Settings panel moved to document.body for mobile bottom sheet.");
+          }
+        } else {
+          if (wrapper && panel.parentNode !== wrapper) {
+            wrapper.appendChild(panel);
+            console.log("💻 [Layout] Settings panel moved back to settingsWrapper for desktop view.");
+          }
+        }
+      }
+      
+      // Run layout adjustments immediately and attach resize listener
+      adjustSettingsPanelParent();
+      window.addEventListener('resize', adjustSettingsPanelParent);
     </script>
 
     <!-- Auth Modal (Google & Email Registration / Sign In) -->
-    <div id="authModal" class="fixed inset-0 flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-300" style="background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); z-index: 1000;">
-      <div class="modal-card w-80 p-6 rounded-2xl border shadow-2xl transition-all duration-300 transform scale-95 pointer-events-auto" style="background-color: var(--card-bg); border-color: var(--border-color); color: var(--text-main);">
+    <div id="authModal" class="fixed inset-0 hidden items-center justify-center transition-all duration-300" style="background-color: rgba(0, 0, 0, 0.6); z-index: 9999; transform: translate3d(0, 0, 0); will-change: transform, opacity;">
+      <div class="modal-card w-80 max-w-[90vw] p-6 rounded-2xl border shadow-2xl transition-all duration-300 transform scale-95 pointer-events-auto" style="background-color: var(--card-bg); border-color: var(--border-color); color: var(--text-main); position: relative; z-index: 10000;">
         <!-- Modal Header -->
         <div class="flex items-center justify-between mb-4 pb-2 border-b border-dashed" style="border-color: var(--border-color);">
           <span id="lblAuthModalTitle" class="font-semibold tracking-widest uppercase text-xxs">SIGN IN / ログイン</span>
