@@ -908,12 +908,18 @@ app.post('/api/sendNoise', authMiddleware, async (req, res) => {
         candidates.sort((a, b) => b.score - a.score);
         const topCandidates = candidates.slice(0, 5);
 
-        for (const candidate of topCandidates) {
+        // ⚡ Bolt: Parallelize external API calls
+        const resolvedCandidates = await Promise.all(topCandidates.map(async (candidate) => {
           const { past, score } = candidate;
           console.log(`🔗 [Match Found] ID: ${past._id}, Score: ${score.toFixed(4)}`);
-          
-          // Generate connection reason
           const reason = await generateReasonOfConnection(userInput, past.content, currentLang, apiKey);
+          return { past, score, reason };
+        }));
+
+        const bulkOperations = [];
+
+        for (const candidate of resolvedCandidates) {
+          const { past, score, reason } = candidate;
           
           const newLinkForCurrent = {
             to_engram_id: past._id.toString(),
@@ -922,41 +928,49 @@ app.post('/api/sendNoise', authMiddleware, async (req, res) => {
           };
           matchedRelations.push(newLinkForCurrent);
 
-          // Update current doc
-          await engramsCollection.updateOne(
-            { _id: newEngram._id },
-            { 
-              $push: { 
-                related_links: newLinkForCurrent,
-                evolution_history: {
-                  timestamp: new Date(),
-                  action: "self_organize_link",
-                  comment: `Connected to ${past._id.toString()} with similarity ${score.toFixed(2)}`
+          // Prepare bulk update for current doc
+          bulkOperations.push({
+            updateOne: {
+              filter: { _id: newEngram._id },
+              update: {
+                $push: {
+                  related_links: newLinkForCurrent,
+                  evolution_history: {
+                    timestamp: new Date(),
+                    action: "self_organize_link",
+                    comment: `Connected to ${past._id.toString()} with similarity ${score.toFixed(2)}`
+                  }
                 }
               }
             }
-          );
+          });
 
-          // Update past doc
+          // Prepare bulk update for past doc
           const newLinkForPast = {
             to_engram_id: dbResultId,
             strength: score,
             reason_of_connection: reason
           };
-          // Make sure we update the correct document including user check
-          await engramsCollection.updateOne(
-            { _id: past._id, userId: req.userId },
-            { 
-              $push: { 
-                related_links: newLinkForPast,
-                evolution_history: {
-                  timestamp: new Date(),
-                  action: "self_organize_link",
-                  comment: `Connected to newly created ${dbResultId} with similarity ${score.toFixed(2)}`
+          bulkOperations.push({
+            updateOne: {
+              filter: { _id: past._id, userId: req.userId },
+              update: {
+                $push: {
+                  related_links: newLinkForPast,
+                  evolution_history: {
+                    timestamp: new Date(),
+                    action: "self_organize_link",
+                    comment: `Connected to newly created ${dbResultId} with similarity ${score.toFixed(2)}`
+                  }
                 }
               }
             }
-          );
+          });
+        }
+
+        // ⚡ Bolt: Execute batched database operations to avoid N+1 query loops
+        if (bulkOperations.length > 0) {
+          await engramsCollection.bulkWrite(bulkOperations);
         }
       }
     }, 3, 500, currentLang, (attempt, type, msg) => {
@@ -1482,9 +1496,17 @@ app.post('/api/updateEngram', authMiddleware, async (req, res) => {
         candidates.sort((a, b) => b.score - a.score);
         const topCandidates = candidates.slice(0, 5);
 
-        for (const candidate of topCandidates) {
+        // ⚡ Bolt: Parallelize external API calls
+        const resolvedCandidates = await Promise.all(topCandidates.map(async (candidate) => {
           const { past, score } = candidate;
           const reason = await generateReasonOfConnection(userInput, past.content, currentLang, apiKey);
+          return { past, score, reason };
+        }));
+
+        const bulkOperations = [];
+
+        for (const candidate of resolvedCandidates) {
+          const { past, score, reason } = candidate;
           
           const newLinkForCurrent = {
             to_engram_id: past._id.toString(),
@@ -1493,40 +1515,49 @@ app.post('/api/updateEngram', authMiddleware, async (req, res) => {
           };
           matchedRelations.push(newLinkForCurrent);
 
-          // 自分側に追加
-          await engramsCollection.updateOne(
-            { _id: objId, userId: req.userId },
-            { 
-              $push: { 
-                related_links: newLinkForCurrent,
-                evolution_history: {
-                  timestamp: new Date(),
-                  action: "self_organize_link",
-                  comment: `Connected to ${past._id.toString()} during refine with similarity ${score.toFixed(2)}`
+          // 自分側に追加 (bulk operation)
+          bulkOperations.push({
+            updateOne: {
+              filter: { _id: objId, userId: req.userId },
+              update: {
+                $push: {
+                  related_links: newLinkForCurrent,
+                  evolution_history: {
+                    timestamp: new Date(),
+                    action: "self_organize_link",
+                    comment: `Connected to ${past._id.toString()} during refine with similarity ${score.toFixed(2)}`
+                  }
                 }
               }
             }
-          );
+          });
 
-          // 相手側にも追加
+          // 相手側にも追加 (bulk operation)
           const newLinkForPast = {
             to_engram_id: db_id,
             strength: score,
             reason_of_connection: reason
           };
-          await engramsCollection.updateOne(
-            { _id: past._id, userId: req.userId },
-            { 
-              $push: { 
-                related_links: newLinkForPast,
-                evolution_history: {
-                  timestamp: new Date(),
-                  action: "self_organize_link",
-                  comment: `Connected to refined ${db_id} with similarity ${score.toFixed(2)}`
+          bulkOperations.push({
+            updateOne: {
+              filter: { _id: past._id, userId: req.userId },
+              update: {
+                $push: {
+                  related_links: newLinkForPast,
+                  evolution_history: {
+                    timestamp: new Date(),
+                    action: "self_organize_link",
+                    comment: `Connected to refined ${db_id} with similarity ${score.toFixed(2)}`
+                  }
                 }
               }
             }
-          );
+          });
+        }
+
+        // ⚡ Bolt: Execute batched database operations to avoid N+1 query loops
+        if (bulkOperations.length > 0) {
+          await engramsCollection.bulkWrite(bulkOperations);
         }
 
         // d. 思考プロセスの生成（sendNoise と同様）
