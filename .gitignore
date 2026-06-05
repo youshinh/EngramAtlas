@@ -36,4 +36,4 @@ specs/
 
 # Antigravity IDE / agent configuration (internal)
 .antigravity/
-
+.jules/
