@@ -158,7 +158,7 @@ Copy `.env.example` to `.env` and fill in your keys:
 PORT=3000
 GEMINI_API_KEY=your_gemini_api_key_here
 MONGODB_URI=your_mongodb_atlas_connection_string_here
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-flash-latest
 GEMINI_EMBEDDING_MODEL=gemini-embedding-2-preview
 ```
 
