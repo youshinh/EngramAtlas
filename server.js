@@ -100,8 +100,14 @@ function hasMongoUri() {
   return !!(mongoUri && mongoUri !== 'mongodb_connection_string_here');
 }
 
+// ⚡ Bolt: Global MongoDB Connection Pooling
+let globalMongoClient = null;
+let globalMongoDb = null;
 if (hasMongoUri()) {
   console.log("🟢 [MongoDB Atlas] URI detected. All requests will use MongoDB Atlas.");
+  globalMongoClient = new MongoClient(mongoUri);
+  // Assign db synchronously without awaiting connect() to enable node driver buffering
+  globalMongoDb = globalMongoClient.db('engram_atlas');
 } else {
   console.warn("⚠️ [MongoDB Atlas] No URI configured. Using in-memory mock fallback.");
 }
@@ -381,6 +387,24 @@ function fetchUrlTitleAndText(targetUrl, redirectCount = 0, visitedUrls = []) {
         return resolve({ title: "Security Block", content: "Protocol not allowed" });
       }
 
+      // 🛡️ SSRF Protection: Pre-flight check to block direct IP inputs bypassing dns.lookup
+      const net = require('net');
+      if (net.isIP(parsedUrl.hostname) !== 0) {
+        const address = parsedUrl.hostname;
+        if (
+          address.startsWith('127.') ||
+          address === '::1' ||
+          address === '0.0.0.0' ||
+          address === '169.254.169.254' ||
+          address.startsWith('192.168.') ||
+          address.startsWith('10.') ||
+          /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(address)
+        ) {
+          console.warn(`⚠️ [SSRF Pre-flight Block]: ${targetUrl} uses internal IP ${address}`);
+          return resolve({ title: "Security Block", content: "Internal IP accessed" });
+        }
+      }
+
       const options = {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -622,10 +646,8 @@ app.post('/api/sendNoise', authMiddleware, async (req, res) => {
     let targetId = null;
 
     if (hasMongoUri()) {
-      const dbClient = new MongoClient(mongoUri);
-      await dbClient.connect();
       try {
-        const db = dbClient.db('engram_atlas');
+        const db = globalMongoDb;
         const engramsCollection = db.collection('engrams');
         // 1. Gather all high-similarity candidates (>= 0.70)
         // ⚡ Bolt: Optimize memory scan by projecting only required fields to avoid over-fetching large documents
@@ -677,7 +699,7 @@ app.post('/api/sendNoise', authMiddleware, async (req, res) => {
           useMongo = true;
         }
       } finally {
-        await dbClient.close();
+        // ⚡ Bolt: Removed dbClient.close() to keep the connection open for pooling
       }
     }
 
@@ -853,9 +875,7 @@ app.post('/api/sendNoise', authMiddleware, async (req, res) => {
       }
 
       if (mongoUri && mongoUri !== 'mongodb_connection_string_here') {
-        dbClient = new MongoClient(mongoUri);
-        await dbClient.connect();
-        const db = dbClient.db('engram_atlas');
+        const db = globalMongoDb;
         const engramsCollection = db.collection('engrams');
 
         // Create new engram document
@@ -924,8 +944,9 @@ app.post('/api/sendNoise', authMiddleware, async (req, res) => {
             strength: score,
             reason_of_connection: reason
           };
+          // Make sure we update the correct document including user check
           await engramsCollection.updateOne(
-            { _id: past._id },
+            { _id: past._id, userId: req.userId },
             { 
               $push: { 
                 related_links: newLinkForPast,
@@ -1223,10 +1244,8 @@ app.get('/api/getEngram', authMiddleware, async (req, res) => {
 
   try {
     if (hasMongoUri()) {
-      const dbClient = new MongoClient(mongoUri);
-      await dbClient.connect();
       try {
-        const db = dbClient.db('engram_atlas');
+        const db = globalMongoDb;
         const engramsCollection = db.collection('engrams');
         
         let objId;
@@ -1277,7 +1296,7 @@ app.get('/api/getEngram', authMiddleware, async (req, res) => {
 
         return res.json(engram);
       } finally {
-        await dbClient.close();
+        // ⚡ Bolt: Removed dbClient.close() to keep the connection open for pooling
       }
     } else {
       const engram = mockEngrams.find(e => e._id === id && e.userId === req.userId);
@@ -1312,10 +1331,8 @@ app.post('/api/forgetEngram', authMiddleware, async (req, res) => {
 
   try {
     if (hasMongoUri()) {
-      const dbClient = new MongoClient(mongoUri);
-      await dbClient.connect();
       try {
-        const db = dbClient.db('engram_atlas');
+        const db = globalMongoDb;
         const engramsCollection = db.collection('engrams');
         
         let objId;
@@ -1337,7 +1354,7 @@ app.post('/api/forgetEngram', authMiddleware, async (req, res) => {
         console.log(`🗑️ [MongoDB] Deleted engram. Success: ${deleteRes.deletedCount > 0}. Cleared references: ${updateRes.modifiedCount}`);
         return res.json({ success: true, message: "Engram forgotten and relationships metabolised" });
       } finally {
-        await dbClient.close();
+        // ⚡ Bolt: Removed dbClient.close() to keep the connection open for pooling
       }
     } else {
       // Mock DB
@@ -1402,10 +1419,8 @@ app.post('/api/updateEngram', authMiddleware, async (req, res) => {
 
   try {
     if (hasMongoUri()) {
-      const dbClient = new MongoClient(mongoUri);
-      await dbClient.connect();
       try {
-        const db = dbClient.db('engram_atlas');
+        const db = globalMongoDb;
         const engramsCollection = db.collection('engrams');
         
         let objId;
@@ -1561,7 +1576,7 @@ app.post('/api/updateEngram', authMiddleware, async (req, res) => {
           }
         });
       } finally {
-        await dbClient.close();
+        // ⚡ Bolt: Removed dbClient.close() to keep the connection open for pooling
       }
     } else {
       // Mock DB
@@ -1671,10 +1686,8 @@ app.get('/api/search', authMiddleware, async (req, res) => {
     const embedding = await getEmbedding(query, apiKey);
 
     if (hasMongoUri()) {
-      const dbClient = new MongoClient(mongoUri);
-      await dbClient.connect();
       try {
-        const db = dbClient.db('engram_atlas');
+        const db = globalMongoDb;
         const engramsCollection = db.collection('engrams');
 
         // Attempt MongoDB Atlas Vector Search ($vectorSearch)
@@ -1722,7 +1735,7 @@ app.get('/api/search', authMiddleware, async (req, res) => {
 
         return res.json(results);
       } finally {
-        await dbClient.close();
+        // ⚡ Bolt: Removed dbClient.close() to keep the connection open for pooling
       }
     } else {
       // Mock DB manual similarity scan
@@ -1753,16 +1766,14 @@ app.delete('/api/resetDatabase', authMiddleware, async (req, res) => {
   console.log('🗑️ [Reset Database] Request received.');
   try {
     if (hasMongoUri()) {
-      const dbClient = new MongoClient(mongoUri);
-      await dbClient.connect();
       try {
-        const db = dbClient.db('engram_atlas');
+        const db = globalMongoDb;
         const engramsCollection = db.collection('engrams');
         const result = await engramsCollection.deleteMany({ userId: req.userId });
         console.log(`🗑️ [Reset Database] Deleted ${result.deletedCount} engrams from MongoDB Atlas.`);
         return res.json({ success: true, mode: 'mongodb', deletedCount: result.deletedCount });
       } finally {
-        await dbClient.close();
+        // ⚡ Bolt: Removed dbClient.close() to keep the connection open for pooling
       }
     } else {
       const count = mockEngrams.filter(e => e.userId === req.userId).length;
@@ -1782,10 +1793,8 @@ app.get('/api/getAllEngrams', authMiddleware, async (req, res) => {
 
   try {
     if (hasMongoUri()) {
-      const dbClient = new MongoClient(mongoUri);
-      await dbClient.connect();
       try {
-        const db = dbClient.db('engram_atlas');
+        const db = globalMongoDb;
         const engramsCollection = db.collection('engrams');
         
         // 3,072次元ベクトルは可視化に不要なので除外してトラフィックを節約
@@ -1796,7 +1805,7 @@ app.get('/api/getAllEngrams', authMiddleware, async (req, res) => {
         
         return res.json(engrams);
       } finally {
-        await dbClient.close();
+        // ⚡ Bolt: Removed dbClient.close() to keep the connection open for pooling
       }
     } else {
       // Mock DB - ベクトルを除外してコピー
