@@ -908,12 +908,16 @@ app.post('/api/sendNoise', authMiddleware, async (req, res) => {
         candidates.sort((a, b) => b.score - a.score);
         const topCandidates = candidates.slice(0, 5);
 
-        for (const candidate of topCandidates) {
+        // ⚡ Bolt: Fetch reasons concurrently to fix sequential LLM API bottleneck
+        const connectionResults = await Promise.all(topCandidates.map(async (candidate) => {
           const { past, score } = candidate;
+          const reason = await generateReasonOfConnection(userInput, past.content, currentLang, apiKey);
+          return { past, score, reason };
+        }));
+
+        for (const { past, score, reason } of connectionResults) {
           console.log(`🔗 [Match Found] ID: ${past._id}, Score: ${score.toFixed(4)}`);
           
-          // Generate connection reason
-          const reason = await generateReasonOfConnection(userInput, past.content, currentLang, apiKey);
           
           const newLinkForCurrent = {
             to_engram_id: past._id.toString(),
@@ -991,11 +995,15 @@ app.post('/api/sendNoise', authMiddleware, async (req, res) => {
     candidates.sort((a, b) => b.score - a.score);
     const topCandidates = candidates.slice(0, 5);
 
-    for (const candidate of topCandidates) {
+    // ⚡ Bolt: Fetch reasons concurrently to fix sequential LLM API bottleneck
+    const connectionResults = await Promise.all(topCandidates.map(async (candidate) => {
       const { past, score } = candidate;
-      console.log(`🔗 [Mock Match Found] ID: ${past._id}, Score: ${score.toFixed(4)}`);
-
       const reason = await generateReasonOfConnection(userInput, past.content, currentLang, apiKey);
+      return { past, score, reason };
+    }));
+
+    for (const { past, score, reason } of connectionResults) {
+      console.log(`🔗 [Mock Match Found] ID: ${past._id}, Score: ${score.toFixed(4)}`);
       
       const newLinkForCurrent = {
         to_engram_id: past._id,
@@ -1482,10 +1490,14 @@ app.post('/api/updateEngram', authMiddleware, async (req, res) => {
         candidates.sort((a, b) => b.score - a.score);
         const topCandidates = candidates.slice(0, 5);
 
-        for (const candidate of topCandidates) {
+        // ⚡ Bolt: Fetch reasons concurrently to fix sequential LLM API bottleneck
+        const connectionResults = await Promise.all(topCandidates.map(async (candidate) => {
           const { past, score } = candidate;
           const reason = await generateReasonOfConnection(userInput, past.content, currentLang, apiKey);
-          
+          return { past, score, reason };
+        }));
+
+        for (const { past, score, reason } of connectionResults) {
           const newLinkForCurrent = {
             to_engram_id: past._id.toString(),
             strength: score,
@@ -1619,10 +1631,14 @@ app.post('/api/updateEngram', authMiddleware, async (req, res) => {
       candidates.sort((a, b) => b.score - a.score);
       const topCandidates = candidates.slice(0, 5);
 
-      for (const candidate of topCandidates) {
+      // ⚡ Bolt: Fetch reasons concurrently to fix sequential LLM API bottleneck
+      const connectionResults = await Promise.all(topCandidates.map(async (candidate) => {
         const { past, score } = candidate;
         const reason = await generateReasonOfConnection(userInput, past.content, currentLang, apiKey);
-        
+        return { past, score, reason };
+      }));
+
+      for (const { past, score, reason } of connectionResults) {
         const newLinkForCurrent = {
           to_engram_id: past._id,
           strength: score,
