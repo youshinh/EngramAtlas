@@ -921,6 +921,7 @@ app.post('/api/sendNoise', authMiddleware, async (req, res) => {
 
         for (const { candidate, reason } of candidatesWithReasons) {
           const { past, score } = candidate;
+          const reason = connectionReasons[index];
           console.log(`🔗 [Match Found] ID: ${past._id}, Score: ${score.toFixed(4)}`);
           
           const newLinkForCurrent = {
@@ -1539,7 +1540,7 @@ app.post('/api/updateEngram', authMiddleware, async (req, res) => {
             }
           });
 
-          // 相手側にも追加
+          // 相手側にも追加 (Past doc)
           const newLinkForPast = {
             to_engram_id: db_id,
             strength: score,
