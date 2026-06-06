@@ -351,7 +351,23 @@ const https = require('https');
 const http = require('http');
 const dns = require('dns');
 
-// Helper to fetch remote web page title and text preview (supporting User-Agent, redirects, & SSRF protection)
+// 🛡️ SSRF Helper: Check if an IP address is internal/private
+function isInternalIP(addressStr) {
+  const address = addressStr.toLowerCase();
+  return (
+    address.startsWith('127.') ||
+    address === '::1' ||
+    address === '0.0.0.0' ||
+    address === '::' ||
+    address.startsWith('::ffff:127.') ||
+    address.startsWith('::ffff:7f') ||
+    address === '169.254.169.254' ||
+    address.startsWith('192.168.') ||
+    address.startsWith('10.') ||
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(address)
+  );
+}
+
 // Helper to fetch remote web page title and text preview (supporting User-Agent, redirects, & SSRF protection)
 function fetchUrlTitleAndText(targetUrl, redirectCount = 0, visitedUrls = []) {
   return new Promise((resolve) => {
@@ -389,18 +405,11 @@ function fetchUrlTitleAndText(targetUrl, redirectCount = 0, visitedUrls = []) {
 
       // 🛡️ SSRF Protection: Pre-flight check to block direct IP inputs bypassing dns.lookup
       const net = require('net');
-      if (net.isIP(parsedUrl.hostname) !== 0) {
-        const address = parsedUrl.hostname;
-        if (
-          address.startsWith('127.') ||
-          address === '::1' ||
-          address === '0.0.0.0' ||
-          address === '169.254.169.254' ||
-          address.startsWith('192.168.') ||
-          address.startsWith('10.') ||
-          /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(address)
-        ) {
-          console.warn(`⚠️ [SSRF Pre-flight Block]: ${targetUrl} uses internal IP ${address}`);
+      // Node's new URL() retains brackets for IPv6 like [::1], breaking net.isIP()
+      const rawHostname = parsedUrl.hostname.replace(/^\[(.*)\]$/, '$1');
+      if (net.isIP(rawHostname) !== 0) {
+        if (isInternalIP(rawHostname)) {
+          console.warn(`⚠️ [SSRF Pre-flight Block]: ${targetUrl} uses internal IP ${rawHostname}`);
           return resolve({ title: "Security Block", content: "Internal IP accessed" });
         }
       }
@@ -422,15 +431,7 @@ function fetchUrlTitleAndText(targetUrl, redirectCount = 0, visitedUrls = []) {
             if (addresses.length === 0) return callback(new Error('No IP found'));
 
             for (let addressStr of addresses) {
-              if (
-                addressStr.startsWith('127.') ||
-                addressStr === '::1' ||
-                addressStr === '0.0.0.0' ||
-                addressStr === '169.254.169.254' ||
-                addressStr.startsWith('192.168.') ||
-                addressStr.startsWith('10.') ||
-                /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(addressStr)
-              ) {
+              if (isInternalIP(addressStr)) {
                 return callback(new Error('Security Block: Internal IP accessed'));
               }
             }
