@@ -351,7 +351,23 @@ const https = require('https');
 const http = require('http');
 const dns = require('dns');
 
-// Helper to fetch remote web page title and text preview (supporting User-Agent, redirects, & SSRF protection)
+// 🛡️ SSRF Helper: Check if an IP address is internal/private
+function isInternalIP(addressStr) {
+  const address = addressStr.toLowerCase();
+  return (
+    address.startsWith('127.') ||
+    address === '::1' ||
+    address === '0.0.0.0' ||
+    address === '::' ||
+    address.startsWith('::ffff:127.') ||
+    address.startsWith('::ffff:7f') ||
+    address === '169.254.169.254' ||
+    address.startsWith('192.168.') ||
+    address.startsWith('10.') ||
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(address)
+  );
+}
+
 // Helper to fetch remote web page title and text preview (supporting User-Agent, redirects, & SSRF protection)
 function fetchUrlTitleAndText(targetUrl, redirectCount = 0, visitedUrls = []) {
   return new Promise((resolve) => {
@@ -389,18 +405,11 @@ function fetchUrlTitleAndText(targetUrl, redirectCount = 0, visitedUrls = []) {
 
       // 🛡️ SSRF Protection: Pre-flight check to block direct IP inputs bypassing dns.lookup
       const net = require('net');
-      if (net.isIP(parsedUrl.hostname) !== 0) {
-        const address = parsedUrl.hostname;
-        if (
-          address.startsWith('127.') ||
-          address === '::1' ||
-          address === '0.0.0.0' ||
-          address === '169.254.169.254' ||
-          address.startsWith('192.168.') ||
-          address.startsWith('10.') ||
-          /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(address)
-        ) {
-          console.warn(`⚠️ [SSRF Pre-flight Block]: ${targetUrl} uses internal IP ${address}`);
+      // Node's new URL() retains brackets for IPv6 like [::1], breaking net.isIP()
+      const rawHostname = parsedUrl.hostname.replace(/^\[(.*)\]$/, '$1');
+      if (net.isIP(rawHostname) !== 0) {
+        if (isInternalIP(rawHostname)) {
+          console.warn(`⚠️ [SSRF Pre-flight Block]: ${targetUrl} uses internal IP ${rawHostname}`);
           return resolve({ title: "Security Block", content: "Internal IP accessed" });
         }
       }
@@ -422,15 +431,7 @@ function fetchUrlTitleAndText(targetUrl, redirectCount = 0, visitedUrls = []) {
             if (addresses.length === 0) return callback(new Error('No IP found'));
 
             for (let addressStr of addresses) {
-              if (
-                addressStr.startsWith('127.') ||
-                addressStr === '::1' ||
-                addressStr === '0.0.0.0' ||
-                addressStr === '169.254.169.254' ||
-                addressStr.startsWith('192.168.') ||
-                addressStr.startsWith('10.') ||
-                /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(addressStr)
-              ) {
+              if (isInternalIP(addressStr)) {
                 return callback(new Error('Security Block: Internal IP accessed'));
               }
             }
@@ -909,14 +910,16 @@ app.post('/api/sendNoise', authMiddleware, async (req, res) => {
         candidates.sort((a, b) => b.score - a.score);
         const topCandidates = candidates.slice(0, 5);
 
-        // Optimization: Execute AI calls concurrently and batch database updates
-        const connectionReasons = await Promise.all(topCandidates.map(candidate =>
+        // ⚡ Bolt: Execute AI requests concurrently
+        const reasonPromises = topCandidates.map(candidate =>
           generateReasonOfConnection(userInput, candidate.past.content, currentLang, apiKey)
-        ));
+            .then(reason => ({ candidate, reason }))
+        );
+        const candidatesWithReasons = await Promise.all(reasonPromises);
 
         const bulkOperations = [];
 
-        topCandidates.forEach((candidate, index) => {
+        for (const { candidate, reason } of candidatesWithReasons) {
           const { past, score } = candidate;
           const reason = connectionReasons[index];
           console.log(`🔗 [Match Found] ID: ${past._id}, Score: ${score.toFixed(4)}`);
@@ -928,7 +931,7 @@ app.post('/api/sendNoise', authMiddleware, async (req, res) => {
           };
           matchedRelations.push(newLinkForCurrent);
 
-          // Prepare update for current doc
+          // Prepare bulk update for current doc
           bulkOperations.push({
             updateOne: {
               filter: { _id: newEngram._id },
@@ -945,7 +948,7 @@ app.post('/api/sendNoise', authMiddleware, async (req, res) => {
             }
           });
 
-          // Prepare update for past doc
+          // Prepare bulk update for past doc
           const newLinkForPast = {
             to_engram_id: dbResultId,
             strength: score,
@@ -966,8 +969,9 @@ app.post('/api/sendNoise', authMiddleware, async (req, res) => {
               }
             }
           });
-        });
+        }
 
+        // ⚡ Bolt: Batch database writes using MongoDB's bulkWrite()
         if (bulkOperations.length > 0) {
           await engramsCollection.bulkWrite(bulkOperations);
         }
@@ -1004,11 +1008,16 @@ app.post('/api/sendNoise', authMiddleware, async (req, res) => {
     candidates.sort((a, b) => b.score - a.score);
     const topCandidates = candidates.slice(0, 5);
 
-    for (const candidate of topCandidates) {
+    // ⚡ Bolt: Execute AI requests concurrently for Mock DB
+    const reasonPromises = topCandidates.map(candidate =>
+      generateReasonOfConnection(userInput, candidate.past.content, currentLang, apiKey)
+        .then(reason => ({ candidate, reason }))
+    );
+    const candidatesWithReasons = await Promise.all(reasonPromises);
+
+    for (const { candidate, reason } of candidatesWithReasons) {
       const { past, score } = candidate;
       console.log(`🔗 [Mock Match Found] ID: ${past._id}, Score: ${score.toFixed(4)}`);
-
-      const reason = await generateReasonOfConnection(userInput, past.content, currentLang, apiKey);
       
       const newLinkForCurrent = {
         to_engram_id: past._id,
@@ -1495,16 +1504,17 @@ app.post('/api/updateEngram', authMiddleware, async (req, res) => {
         candidates.sort((a, b) => b.score - a.score);
         const topCandidates = candidates.slice(0, 5);
 
-        // Optimization: Execute AI calls concurrently and batch database updates
-        const connectionReasons = await Promise.all(topCandidates.map(candidate =>
+        // ⚡ Bolt: Execute AI requests concurrently for /api/updateEngram
+        const reasonPromises = topCandidates.map(candidate =>
           generateReasonOfConnection(userInput, candidate.past.content, currentLang, apiKey)
-        ));
+            .then(reason => ({ candidate, reason }))
+        );
+        const candidatesWithReasons = await Promise.all(reasonPromises);
 
         const bulkOperations = [];
 
-        topCandidates.forEach((candidate, index) => {
+        for (const { candidate, reason } of candidatesWithReasons) {
           const { past, score } = candidate;
-          const reason = connectionReasons[index];
           
           const newLinkForCurrent = {
             to_engram_id: past._id.toString(),
@@ -1513,7 +1523,7 @@ app.post('/api/updateEngram', authMiddleware, async (req, res) => {
           };
           matchedRelations.push(newLinkForCurrent);
 
-          // 自分側に追加 (Current doc)
+          // 自分側に追加
           bulkOperations.push({
             updateOne: {
               filter: { _id: objId, userId: req.userId },
@@ -1551,8 +1561,9 @@ app.post('/api/updateEngram', authMiddleware, async (req, res) => {
               }
             }
           });
-        });
+        }
 
+        // ⚡ Bolt: Batch database writes using MongoDB's bulkWrite()
         if (bulkOperations.length > 0) {
           await engramsCollection.bulkWrite(bulkOperations);
         }
@@ -1647,9 +1658,15 @@ app.post('/api/updateEngram', authMiddleware, async (req, res) => {
       candidates.sort((a, b) => b.score - a.score);
       const topCandidates = candidates.slice(0, 5);
 
-      for (const candidate of topCandidates) {
+      // ⚡ Bolt: Execute AI requests concurrently for Mock DB in /api/updateEngram
+      const reasonPromises = topCandidates.map(candidate =>
+        generateReasonOfConnection(userInput, candidate.past.content, currentLang, apiKey)
+          .then(reason => ({ candidate, reason }))
+      );
+      const candidatesWithReasons = await Promise.all(reasonPromises);
+
+      for (const { candidate, reason } of candidatesWithReasons) {
         const { past, score } = candidate;
-        const reason = await generateReasonOfConnection(userInput, past.content, currentLang, apiKey);
         
         const newLinkForCurrent = {
           to_engram_id: past._id,
