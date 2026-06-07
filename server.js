@@ -171,11 +171,21 @@ function getMockEmbedding(text) {
   const cleanText = text || "empty";
   const finalVec = new Array(3072).fill(0);
   
+  // ⚡ Bolt: Optimize mock embedding generation by counting character frequencies first.
+  // Instead of running 3072 additions text.length times (O(N*3072)),
+  // we run it only for each unique character (max 256 times).
+  const charCounts = new Array(256).fill(0);
   for (let i = 0; i < cleanText.length; i++) {
-    const code = cleanText.charCodeAt(i) % 256;
-    const charVec = charVectors[code];
-    for (let j = 0; j < 3072; j++) {
-      finalVec[j] += charVec[j];
+    charCounts[cleanText.charCodeAt(i) % 256]++;
+  }
+
+  for (let c = 0; c < 256; c++) {
+    const count = charCounts[c];
+    if (count > 0) {
+      const charVec = charVectors[c];
+      for (let j = 0; j < 3072; j++) {
+        finalVec[j] += charVec[j] * count;
+      }
     }
   }
   
@@ -921,7 +931,7 @@ app.post('/api/sendNoise', authMiddleware, async (req, res) => {
 
         for (const { candidate, reason } of candidatesWithReasons) {
           const { past, score } = candidate;
-          const reason = connectionReasons[index];
+
           console.log(`🔗 [Match Found] ID: ${past._id}, Score: ${score.toFixed(4)}`);
           
           const newLinkForCurrent = {
