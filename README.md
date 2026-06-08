@@ -58,6 +58,7 @@ When a new "noise" node is added, the engine generates its vector via `gemini-em
 ### 📊 Interactive 3D Memory Map
 
 Renders the entire knowledge graph on an HTML5 Canvas (`#memoryMapCanvas`) powered by a custom Force-Directed layout engine.
+
 ![canvas.png](img/relation.png)
 
 - **3D Camera Control**: Smooth mouse-driven Yaw/Pitch rotation, panning, and scroll-to-zoom.
