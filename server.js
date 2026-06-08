@@ -171,11 +171,19 @@ function getMockEmbedding(text) {
   const cleanText = text || "empty";
   const finalVec = new Array(3072).fill(0);
   
+  // ⚡ Bolt: Prevent O(N*M) event loop blocking by pre-calculating character frequencies
+  const charFreqs = new Array(256).fill(0);
   for (let i = 0; i < cleanText.length; i++) {
-    const code = cleanText.charCodeAt(i) % 256;
-    const charVec = charVectors[code];
-    for (let j = 0; j < 3072; j++) {
-      finalVec[j] += charVec[j];
+    charFreqs[cleanText.charCodeAt(i) % 256]++;
+  }
+
+  for (let c = 0; c < 256; c++) {
+    if (charFreqs[c] > 0) {
+      const charVec = charVectors[c];
+      const freq = charFreqs[c];
+      for (let j = 0; j < 3072; j++) {
+        finalVec[j] += charVec[j] * freq;
+      }
     }
   }
   
