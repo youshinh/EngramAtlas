@@ -108,6 +108,12 @@ if (hasMongoUri()) {
   globalMongoClient = new MongoClient(mongoUri);
   // Assign db synchronously without awaiting connect() to enable node driver buffering
   globalMongoDb = globalMongoClient.db('engram_atlas');
+
+  // ⚡ Bolt: Add background index on `userId` to fix O(N) full collection scan (COLLSCAN) on queries.
+  // Data isolation requires checking `userId` on every operation, making this IXSCAN critical.
+  globalMongoDb.collection('engrams').createIndex({ userId: 1 }, { background: true }).catch(err => {
+    console.error("⚠️ [MongoDB Atlas] Background index creation failed:", err);
+  });
 } else {
   console.warn("⚠️ [MongoDB Atlas] No URI configured. Using in-memory mock fallback.");
 }
