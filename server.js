@@ -11,6 +11,15 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: '20mb' }));
 app.use('/img', express.static(path.join(__dirname, 'img')));
 
+// 🛡️ Security Enhancement: Add essential security headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  next();
+});
+
 // ----------------------------------------------------
 // 🔑 User Authentication Setup (Firebase Admin SDK)
 // ----------------------------------------------------
@@ -108,11 +117,9 @@ if (hasMongoUri()) {
   globalMongoClient = new MongoClient(mongoUri);
   // Assign db synchronously without awaiting connect() to enable node driver buffering
   globalMongoDb = globalMongoClient.db('engram_atlas');
-
-  // ⚡ Bolt: Add background index on `userId` to fix O(N) full collection scan (COLLSCAN) on queries.
-  // Data isolation requires checking `userId` on every operation, making this IXSCAN critical.
-  globalMongoDb.collection('engrams').createIndex({ userId: 1 }, { background: true }).catch(err => {
-    console.error("⚠️ [MongoDB Atlas] Background index creation failed:", err);
+  // ⚡ Bolt: Add database index on frequently queried userId field
+  globalMongoDb.collection('engrams').createIndex({ userId: 1 }).catch(err => {
+    console.error("⚠️ [MongoDB Atlas] Failed to create index on userId:", err.message);
   });
 } else {
   console.warn("⚠️ [MongoDB Atlas] No URI configured. Using in-memory mock fallback.");
