@@ -117,6 +117,10 @@ if (hasMongoUri()) {
   globalMongoClient = new MongoClient(mongoUri);
   // Assign db synchronously without awaiting connect() to enable node driver buffering
   globalMongoDb = globalMongoClient.db('engram_atlas');
+  // ⚡ Bolt: Add database index on frequently queried userId field
+  globalMongoDb.collection('engrams').createIndex({ userId: 1 }).catch(err => {
+    console.error("⚠️ [MongoDB Atlas] Failed to create index on userId:", err.message);
+  });
 } else {
   console.warn("⚠️ [MongoDB Atlas] No URI configured. Using in-memory mock fallback.");
 }
