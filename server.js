@@ -1787,18 +1787,37 @@ app.get('/api/search', authMiddleware, async (req, res) => {
         }
 
         // Fallback: local memory scan over Mongo documents
-        const allEngrams = await engramsCollection.find({ userId: req.userId }).toArray();
-        const results = allEngrams.map(e => {
+        // ⚡ Bolt: Optimize fallback search memory usage by projecting only needed fields
+        const allEngrams = await engramsCollection.find(
+          { userId: req.userId },
+          { projection: { _id: 1, vector_embeddings: 1 } }
+        ).toArray();
+
+        const topCandidates = allEngrams.map(e => {
           let score = 0;
           if (e.vector_embeddings) {
             score = cosineSimilarity(embedding, e.vector_embeddings);
           }
-          const { vector_embeddings, ...rest } = e;
-          return { ...rest, score };
+          return { _id: e._id, score };
         })
         .filter(e => e.score >= 0.35)
         .sort((a, b) => b.score - a.score)
         .slice(0, 10);
+
+        if (topCandidates.length === 0) return res.json([]);
+
+        // Fetch full documents for only the top 10 matches
+        const candidateIds = topCandidates.map(c => c._id);
+        const fullDocs = await engramsCollection.find(
+          { _id: { $in: candidateIds } },
+          { projection: { vector_embeddings: 0 } }
+        ).toArray();
+
+        // Merge scores back, preserving sorted order
+        const results = topCandidates.map(c => {
+          const doc = fullDocs.find(d => d._id.equals(c._id));
+          return { ...doc, score: c.score };
+        });
 
         return res.json(results);
       } finally {
@@ -1806,17 +1825,23 @@ app.get('/api/search', authMiddleware, async (req, res) => {
       }
     } else {
       // Mock DB manual similarity scan
-      const results = mockEngrams.filter(e => e.userId === req.userId).map(e => {
+      // ⚡ Bolt: Prevent massive intermediate object allocation during manual scan
+      const topCandidates = mockEngrams.filter(e => e.userId === req.userId).map(e => {
         let score = 0;
         if (e.vector_embeddings) {
           score = cosineSimilarity(embedding, e.vector_embeddings);
         }
-        const { vector_embeddings, ...rest } = e;
-        return { ...rest, score };
+        return { engram: e, score };
       })
       .filter(e => e.score >= 0.35)
       .sort((a, b) => b.score - a.score)
       .slice(0, 10);
+
+      // Now map only the top 10 elements
+      const results = topCandidates.map(c => {
+        const { vector_embeddings, ...rest } = c.engram;
+        return { ...rest, score: c.score };
+      });
 
       return res.json(results);
     }
