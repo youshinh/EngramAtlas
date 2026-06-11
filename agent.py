@@ -31,7 +31,7 @@ def run_agent(user_input, mode="send_noise", current_lang="ja", system_instructi
         print(f"DEBUG: Client init error: {e}", file=sys.stderr)
 
     # Model configuration
-    model_name = "gemini-flash-latest"
+    model_name = "gemini-flash-lite-latest"
 
     # Define instructions & prompt
     if mode == "forget":
