@@ -1745,8 +1745,8 @@ app.get('/api/search', authMiddleware, async (req, res) => {
   const apiKey = process.env.GEMINI_API_KEY;
   const mongoUri = process.env.MONGODB_URI;
 
-  if (!query || !query.trim()) {
-    return res.status(400).json({ error: "Query is empty" });
+  if (!query || typeof query !== 'string' || !query.trim()) {
+    return res.status(400).json({ error: "Query must be a non-empty string" });
   }
 
   try {
