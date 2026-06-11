@@ -1755,8 +1755,8 @@ app.get('/api/search', authMiddleware, async (req, res) => {
   const currentLang = lang || 'en';
   const apiKey = process.env.GEMINI_API_KEY;
 
-  if (!query || !query.trim()) {
-    return res.status(400).json({ error: "Query is empty" });
+  if (!query || typeof query !== 'string' || !query.trim()) {
+    return res.status(400).json({ error: "Query must be a non-empty string" });
   }
 
   try {
