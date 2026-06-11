@@ -62,6 +62,11 @@ Renders the entire knowledge graph on an HTML5 Canvas (`#memoryMapCanvas`) power
 ![canvas.png](img/relation.png)
 
 - **3D Camera Control**: Smooth mouse-driven Yaw/Pitch rotation, panning, and scroll-to-zoom.
+- **Node Color-Coding (Semantic Density)**: Colors intuitively communicate how heavily a memory is connected:
+  - ⚪ **Bright White**: The currently active focus node (nucleus).
+  - 🔵 **Deep Blue**: Highly integrated nodes with **10 or more connections** (high density).
+  - 🟢 **Teal-Green**: Connected nodes with **3 to 9 connections** (medium density).
+  - 🔴 **Pink-Purple**: Isolated or newly added nodes with **2 or fewer connections** (low density).
 - **Intuitive Interactions**: Drag nodes to reposition them; double-click a node to pull up the editing/refinement panel.
 - **Semantic Pull Search**: Type a search query to vectorize it in real-time, visually pulling matching nodes closer and highlighting them.
 

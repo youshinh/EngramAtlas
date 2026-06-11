@@ -2105,6 +2105,10 @@
             const initialOffset = Math.abs(randomSeed) * Math.PI * 2;
             const orbitDistRatio = 0.22 + Math.abs(Math.cos(idx)) * 0.15; // Radius orbit ratio variation
             
+            // Generate random 3D rotation angles for orbital tilt
+            const rotAxisX = Math.random() * Math.PI * 2;
+            const rotAxisY = Math.random() * Math.PI * 2;
+
             this.nodes.push({
               id: id,
               text: text,
@@ -2123,7 +2127,9 @@
               // Organic variables
               rotationSpeed: rotationSpeed,
               initialOffset: initialOffset,
-              orbitDistRatio: orbitDistRatio
+              orbitDistRatio: orbitDistRatio,
+              rotAxisX: rotAxisX,
+              rotAxisY: rotAxisY
             });
           });
           
@@ -2677,10 +2683,80 @@
                 }
                 this.ctx.restore();
               } else {
-                const charCode = n.id.charCodeAt(n.id.length - 1) || 0;
-                const isTeal = (mass >= 5) || (charCode % 2 === 0);
+                const isTeal = (mass >= 3);
+                const isBlue = (mass >= 10);
                 
-                if (isTeal) {
+                if (isBlue) {
+                  // 1.5 Deep Blue Bioluminescent Cell Node (mass >= 10)
+                  this.ctx.save();
+                  this.ctx.strokeStyle = `rgba(147, 197, 253, ${0.45 * twinkle})`; 
+                  this.ctx.lineWidth = 0.65 * scale;
+                  
+                  // Outer membrane
+                  this.ctx.beginPath();
+                  this.ctx.arc(p.x, p.y, rScale, 0, Math.PI * 2);
+                  this.ctx.stroke();
+                  
+                  // Inner membrane
+                  this.ctx.beginPath();
+                  this.ctx.arc(p.x, p.y, rScale * 0.88, 0, Math.PI * 2);
+                  this.ctx.stroke();
+                  this.ctx.restore();
+                  
+                  // B. Internal cell liquid volume gradient
+                  const blueGrad = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rScale * 0.85);
+                  blueGrad.addColorStop(0, `rgba(30, 58, 138, ${0.92 * twinkle})`);
+                  blueGrad.addColorStop(0.5, `rgba(15, 32, 67, ${0.68 * twinkle})`);
+                  blueGrad.addColorStop(0.9, `rgba(10, 20, 45, ${0.48 * twinkle})`);
+                  blueGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+                  this.ctx.fillStyle = blueGrad;
+                  this.ctx.beginPath();
+                  this.ctx.arc(p.x, p.y, rScale * 0.88, 0, Math.PI * 2);
+                  this.ctx.fill();
+                  
+                  // C. Bioluminescent core organelles (small rotating light particles inside)
+                  this.ctx.save();
+                  const numBlueOrganelles = 3;
+                  const rotSpeed = n.rotationSpeed !== undefined ? n.rotationSpeed : 0.45;
+                  const initOffset = n.initialOffset !== undefined ? n.initialOffset : 0;
+                  const orbitDist = rScale * (n.orbitDistRatio !== undefined ? n.orbitDistRatio : 0.32);
+                  
+                  // Combine node rotation axis with Camera angles (Yaw/Pitch) so they rotate dynamically with the camera
+                  const tiltX = (n.rotAxisX !== undefined ? n.rotAxisX : 0) + this.cameraAngleX;
+                  const tiltY = (n.rotAxisY !== undefined ? n.rotAxisY : 0) + this.cameraAngleY;
+                   
+                  for (let i = 0; i < numBlueOrganelles; i++) {
+                     const angleOffset = (i * Math.PI * 2 / numBlueOrganelles) + (time * rotSpeed) + initOffset;
+                     const wobble = 1.0 + 0.15 * Math.sin(time * 1.5 + i + initOffset);
+                     
+                     let lx = Math.cos(angleOffset) * orbitDist * wobble;
+                     let ly = Math.sin(angleOffset) * orbitDist * wobble;
+                     let lz = 0;
+                     
+                     const cosX = Math.cos(tiltX);
+                     const sinX = Math.sin(tiltX);
+                     let ly1 = ly * cosX - lz * sinX;
+                     let lz1 = lz * cosX + ly * sinX;
+                     
+                     const cosY = Math.cos(tiltY);
+                     const sinY = Math.sin(tiltY);
+                     let lx2 = lx * cosY + lz1 * sinY;
+                     
+                     const ox = lx2;
+                     const oy = ly1;
+                     
+                     const dotGrad = this.ctx.createRadialGradient(p.x + ox, p.y + oy, 0, p.x + ox, p.y + oy, rScale * 0.23);
+                     dotGrad.addColorStop(0, "rgba(239, 246, 255, 0.95)");
+                     dotGrad.addColorStop(0.5, "rgba(96, 165, 250, 0.7)"); // Cosmic Blue
+                     dotGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+                     
+                     this.ctx.fillStyle = dotGrad;
+                     this.ctx.beginPath();
+                     this.ctx.arc(p.x + ox, p.y + oy, rScale * 0.23, 0, Math.PI * 2);
+                     this.ctx.fill();
+                  }
+                  this.ctx.restore();
+                } else if (isTeal) {
                   // 2. Teal-green Bioluminescent Cell Node
                   // A. Iridescent double membrane bilayer
                   this.ctx.save();
@@ -2716,14 +2792,32 @@
                   const rotSpeed = n.rotationSpeed !== undefined ? n.rotationSpeed : 0.45;
                   const initOffset = n.initialOffset !== undefined ? n.initialOffset : 0;
                   const orbitDist = rScale * (n.orbitDistRatio !== undefined ? n.orbitDistRatio : 0.32);
+                  
+                  // Combine node rotation axis with Camera angles (Yaw/Pitch) so they rotate dynamically with the camera
+                  const tiltX = (n.rotAxisX !== undefined ? n.rotAxisX : 0) + this.cameraAngleX;
+                  const tiltY = (n.rotAxisY !== undefined ? n.rotAxisY : 0) + this.cameraAngleY;
                    
                   for (let i = 0; i < numTealOrganelles; i++) {
-                     // Unique speed, unique direction, unique initial angle
                      const angleOffset = (i * Math.PI * 2 / numTealOrganelles) + (time * rotSpeed) + initOffset;
-                     // Add micro-wobble (breathing organic size fluctuation)
                      const wobble = 1.0 + 0.15 * Math.sin(time * 1.5 + i + initOffset);
-                     const ox = Math.cos(angleOffset) * orbitDist * wobble;
-                     const oy = Math.sin(angleOffset) * orbitDist * wobble;
+                     
+                     // 1. Get base coords on XY plane
+                     let lx = Math.cos(angleOffset) * orbitDist * wobble;
+                     let ly = Math.sin(angleOffset) * orbitDist * wobble;
+                     let lz = 0;
+                     
+                     // 2. Apply 3D rotation (Pitch / Yaw) based on node tilt angles
+                     const cosX = Math.cos(tiltX);
+                     const sinX = Math.sin(tiltX);
+                     let ly1 = ly * cosX - lz * sinX;
+                     let lz1 = lz * cosX + ly * sinX;
+                     
+                     const cosY = Math.cos(tiltY);
+                     const sinY = Math.sin(tiltY);
+                     let lx2 = lx * cosY + lz1 * sinY;
+                     
+                     const ox = lx2;
+                     const oy = ly1;
                      
                      const dotGrad = this.ctx.createRadialGradient(p.x + ox, p.y + oy, 0, p.x + ox, p.y + oy, rScale * 0.23);
                      dotGrad.addColorStop(0, "rgba(220, 252, 231, 0.95)");
@@ -2760,19 +2854,34 @@
                   this.ctx.arc(p.x, p.y, rScale, 0, Math.PI * 2);
                   this.ctx.fill();
                   
-                  // C. Far-off star clusters inside pink nebula node
+                  // C. Far-off star clusters inside pink nebula node (Rotate with camera angle as well)
                   this.ctx.save();
                   this.ctx.fillStyle = `rgba(255, 255, 255, ${0.85 * twinkle})`;
                   const initOffset = n.initialOffset !== undefined ? n.initialOffset : 0;
                   const rotSpeed = n.rotationSpeed !== undefined ? n.rotationSpeed : 0.45;
+                  const tiltX = this.cameraAngleX;
+                  const tiltY = this.cameraAngleY;
                   for (let i = 0; i < 4; i++) {
-                    // Use a stable seed parameter instead of dynamic coordinate 'n.x' to prevent jittering when nodes move
                     const breath = Math.sin(time * 0.8 + i * 1.5 + initOffset);
                     const angle = (i * Math.PI * 2 / 4) + (time * rotSpeed * 0.15) + initOffset;
                     const orbitDist = rScale * 0.38 * (0.8 + 0.2 * breath);
                     
-                    const sx = p.x + Math.cos(angle) * orbitDist;
-                    const sy = p.y + Math.sin(angle) * orbitDist;
+                    let lx = Math.cos(angle) * orbitDist;
+                    let ly = Math.sin(angle) * orbitDist;
+                    let lz = 0;
+                    
+                    const cosX = Math.cos(tiltX);
+                    const sinX = Math.sin(tiltX);
+                    let ly1 = ly * cosX - lz * sinX;
+                    let lz1 = lz * cosX + ly * sinX;
+                    
+                    const cosY = Math.cos(tiltY);
+                    const sinY = Math.sin(tiltY);
+                    let lx2 = lx * cosY + lz1 * sinY;
+                    
+                    const sx = p.x + lx2;
+                    const sy = p.y + ly1;
+                    
                     this.ctx.beginPath();
                     this.ctx.arc(sx, sy, 0.75 * scale, 0, Math.PI * 2);
                     this.ctx.fill();
@@ -2807,9 +2916,12 @@
               this.ctx.arc(p.x, p.y, rScale, 0, Math.PI * 2);
               
               const stGrad = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rScale);
-              const charCode = n.id.charCodeAt(n.id.length - 1) || 0;
               
-              if (charCode % 2 === 0) {
+              if (mass >= 10) {
+                // Deep blue dust
+                stGrad.addColorStop(0, `rgba(147, 197, 253, ${0.62 * depthFog})`);
+                stGrad.addColorStop(1, `rgba(30, 58, 138, ${0.06 * depthFog})`);
+              } else if (mass >= 3) {
                 // Teal-green dust
                 stGrad.addColorStop(0, `rgba(167, 243, 208, ${0.62 * depthFog})`);
                 stGrad.addColorStop(1, `rgba(45, 120, 115, ${0.06 * depthFog})`);

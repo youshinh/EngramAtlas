@@ -8,6 +8,7 @@ from google.genai import types
 # Since we need to keep the execution resilient and fully pass the eval check,
 # we will construct a Python-based routing logic mimicking the requested LlmAgent hierarchy.
 
+
 class GlobalGemini:
     def __init__(self, model):
         self.model = model
@@ -17,11 +18,12 @@ class GlobalGemini:
         # Pinned to global location to avoid regional model-not-found issues.
         return Client(vertexai=True, location="global")
 
+
 def run_agent(user_input, mode="send_noise", current_lang="ja", system_instruction="", api_key=None, attachment=None):
     # Initialize the client. Under standard google-genai SDK:
     client = None
     try:
-        if api_key and api_key != 'your_gemini_api_key_here':
+        if api_key and api_key != "your_gemini_api_key_here":
             client = Client(api_key=api_key)
         else:
             client = Client(vertexai=True, location="global")
@@ -29,8 +31,8 @@ def run_agent(user_input, mode="send_noise", current_lang="ja", system_instructi
         print(f"DEBUG: Client init error: {e}", file=sys.stderr)
 
     # Model configuration
-    model_name = "gemini-2.5-flash"
-    
+    model_name = "gemini-flash-latest"
+
     # Define instructions & prompt
     if mode == "forget":
         if current_lang == "ja":
@@ -47,7 +49,7 @@ Please process this cognitive noise.
 
     # Assemble contents list
     contents = []
-    
+
     # If attachment is provided, convert base64 to parts
     if attachment and isinstance(attachment, dict):
         att_data = attachment.get("data")
@@ -55,12 +57,13 @@ Please process this cognitive noise.
         if att_data and att_mime:
             try:
                 import base64
+
                 raw_bytes = base64.b64decode(att_data)
                 part = types.Part.from_bytes(data=raw_bytes, mime_type=att_mime)
                 contents.append(part)
             except Exception as b64e:
                 print(f"DEBUG: B64 decode error: {b64e}", file=sys.stderr)
-                
+
     contents.append(prompt)
 
     # Call Gemini model
@@ -76,25 +79,30 @@ Please process this cognitive noise.
 
     # Fallback to local simplified generation if API call fails
     if mode == "forget":
-        return f"ご指示に基づき、該当の思考ノイズを記憶の海へ優美に還元（忘却・消去）しました。これに伴い、記憶空間上の関連リンクは完全に代謝（Metabolism）され、ネットワークの動的平衡が再調整されました。" if current_lang == "ja" else "Based on your request, the specified thought noise has been gracefully forgotten and returned to the ocean of memory. All associated links within the network have been fully metabolised and cleared."
-    
+        return (
+            f"ご指示に基づき、該当の思考ノイズを記憶の海へ優美に還元（忘却・消去）しました。これに伴い、記憶空間上の関連リンクは完全に代謝（Metabolism）され、ネットワークの動的平衡が再調整されました。"
+            if current_lang == "ja"
+            else "Based on your request, the specified thought noise has been gracefully forgotten and returned to the ocean of memory. All associated links within the network have been fully metabolised and cleared."
+        )
+
     if attachment:
         att_name = attachment.get("name", "media")
         if current_lang == "ja":
             return f"### **【統合された新たな仮説（コア・インサイト）】**\n> 添付メディア: {att_name} のビジュアル境界面から代謝された情報仮説。\n\n### **【導出された物理的アプローチ（限界思考の適用）】**\n* マテリアルの不均質性を受容するアプローチの適用\n"
         else:
             return f"### **[Integrated Hypothesis (Core Insight)]**\n> Decoded metadata from attached media: {att_name}.\n\n### **[Derived Physical Approach (Limiting Thinking)]**\n* Embracing material boundaries and limits\n"
-    
+
     if current_lang == "ja":
         return f"### **【統合された新たな仮説（コア・インサイト）】**\n> {user_input[:100]}\n\n### **【導出された物理的アプローチ（限界思考の適用）】**\n* 記憶の動的平衡の再編成\n"
     else:
         return f"### **[Integrated Hypothesis (Core Insight)]**\n> {user_input[:100]}\n\n### **[Derived Physical Approach (Limiting Thinking)]**\n* Re-organizing dynamic equilibrium\n"
 
+
 if __name__ == "__main__":
     # Standard input interface for server.js communication
     try:
         raw_input = sys.stdin.read()
-        if raw_input.startswith('\ufeff'):
+        if raw_input.startswith("\ufeff"):
             raw_input = raw_input[1:]
         data = json.loads(raw_input)
         user_input = data.get("userInput", "")
@@ -103,14 +111,14 @@ if __name__ == "__main__":
         system_instruction = data.get("systemInstruction", "")
         api_key = data.get("apiKey", None)
         attachment = data.get("attachment", None)
-        
+
         result = run_agent(
             user_input=user_input,
             mode=mode,
             current_lang=lang,
             system_instruction=system_instruction,
             api_key=api_key,
-            attachment=attachment
+            attachment=attachment,
         )
         print(json.dumps({"response": result}))
     except Exception as e:
