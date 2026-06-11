@@ -1,41 +1,41 @@
 # EngramAtlas
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Google Cloud](https://img.shields.io/badge/Google%20Cloud-Hackathon%202026-4285F4?logo=google-cloud&logoColor=white)](https://cloud.google.com)
+[![Google Cloud](https://img.shields.io/badge/Google%20Cloud-Agent%20Builder-4285F4?logo=google-cloud&logoColor=white)](https://cloud.google.com)
 [![MongoDB Atlas](https://img.shields.io/badge/MongoDB%20Atlas-MCP%20Integrated-00ED64?logo=mongodb&logoColor=white)](https://www.mongodb.com/atlas)
-[![Gemini](https://img.shields.io/badge/Gemini-3.5%20Flash-8E75B2?logo=google&logoColor=white)](https://ai.google.dev)
 [![Node.js](https://img.shields.io/badge/Node.js-v18%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 
 ## Overview
 
 **EngramAtlas** is a bio-inspired knowledge engine. It receives raw human thoughts—fuzzy "cognitive noise" such as voice memos, handwritten sketches (images), PDFs, web URLs, and text snippets—and treats the input interface as a cell membrane. Rather than forcing these inputs into static, nested folders, the engine autonomously infers the relationships ("in-betweens") among them and dynamically links nodes in MongoDB Atlas to form a self-organizing, metabolic memory network.
 
-Leveraging Gemini 3.5 Flash for multimodal cognitive understanding and 3,072-dimensional vector embeddings, it maps every input into a shared semantic vector space, dynamically spinning bi-directional connections as context resonates.
+Leveraging Gemini Flash for multimodal cognitive understanding and 3,072-dimensional vector embeddings, it maps every input into a shared semantic vector space, dynamically spinning bi-directional connections as context resonates.
 
 ---
 
 ## Architecture
 
 ```
-[ User Input: text / image / PDF / URL / audio ]
-                 │
-                 ▼  POST /api/sendNoise
- [ Node.js + Express (server.js) ]
-                 │
-         ┌───────┴────────┐
-         ▼                ▼
-  [ Gemini API ]    [ MongoDB Atlas ]
-    - Text Generation   - engrams collection
-    - Embeddings        - Vector similarity search
-    - Multimodal Vision - Bidirectional related_links
-    - Audio Transcription - Evolution history log
+[ User Input / Media / URL ]
+            │
+            ▼ POST /api/sendNoise
+[ Node.js + Express (server.js Gateway) ]
+            │
+            ▼ (Google Cloud SDK / Sessions API / Local Process)
+[ 🌟 Google Cloud Agent Builder (agent.py Brain) ]
+     ├── 🧠 Gemini 3.5 High-level Inference & Planning
+     └── 🛠️ Tools (OpenAPI / MCP Extensions)
+                  │
+                  ▼ (Autonomous Execution)
+           [ MongoDB Atlas / Mock DB Fallback ]
+         (engrams collection / Vector Search)
 ```
 
 **Key Design Decisions:**
 
-- **Autonomous Agentic Planning**: Replaces heavy, high-latency orchestration frameworks with a lightweight, native JavaScript reflection loop running directly on Node.js.
-- **MongoDB Atlas MCP Integration**: Leverages MongoDB not just as a standard document store, but as the dynamic backbone of a semantic, self-organizing graph database.
-- **Dynamic Equilibrium & Fallback**: Automatically falls back to an in-memory mock store if MongoDB Atlas is not configured, enabling zero-config local runs and instant CI pipeline tests.
+- **Google Cloud Agent Builder (ADK) Integration**: The core reasoning, intent classification (forget/metabolize), and multimodal orchestration are delegated to the Python-based Agent Builder model (`agent.py`) mimicking the Vertex AI Agent Engine ADK framework.
+- **Node.js Express Gateway**: Renders the dynamic 3D Cell Membrane UI, manages user sessions (Firebase Auth), ensures SSRF network sanitization, and proxies client inputs directly to the Agent Builder sessions.
+- **Dynamic Equilibrium & Resilient Fallback**: Monitors MongoDB connection status. If a query fails or network blocks the database (e.g. `querySrv ECONNREFUSED`), the gateway dynamically marks the database offline (`isMongoActive = false`) and seamlessly fallbacks to the in-memory mock store without crashing the application.
   ![front.png](img/front.png)
 
 ---
@@ -67,12 +67,13 @@ Renders the entire knowledge graph on an HTML5 Canvas (`#memoryMapCanvas`) power
 
 ### 🧹 Conversational Forget & Semantic Integrity
 
-If the ingestion text contains delete/forget intent (e.g., "forget", "delete", "忘却"), the agent triggers an autonomous forget flow. It identifies the semantically closest target node, deletes it, and performs a `$pull` operation to surgically strip invalid links from all other nodes, maintaining perfect referential integrity.
+If the ingestion text contains delete/forget intent (e.g., "forget", "delete", "忘却"), the Agent Builder (`agent.py`) classifies the intent and triggers an autonomous forget flow. The gateway identifies the semantically closest target node, deletes it, and performs a `$pull` operation to surgically strip invalid links from all other nodes, maintaining perfect referential integrity.
 ![search.png](img/search.png)
 
-### 🛡️ Triage-based Self-Healing (Exponential Backoff)
+### 🛡️ Triage-based Self-Healing & Fallback (Resilience)
 
-Monitors API rate limits (HTTP 429) and network blips, categorizing errors into `TRANSIENT` or `FATAL`. If the error is transient, it retries up to 3 times using an **exponential backoff** algorithm (starting at 500ms), logging the "Self-Healing Trace" to guarantee eventual consistency.
+Monitors API rate limits (HTTP 429) and network blips, categorizing errors into `TRANSIENT` or `FATAL`. If the error is transient, it retries up to 3 times using an **exponential backoff** algorithm (starting at 500ms).
+Furthermore, if the database operations fail due to connection issues (e.g., MongoDB server timeout), the system automatically updates the connectivity status (`isMongoActive = false`) and fallbacks to the Mock DB system instantly, logging the recovery traces to guarantee consistency and stability.
 
 ---
 

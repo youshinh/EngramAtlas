@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const { MongoClient, ObjectId } = require('mongodb');
 const { GoogleGenAI } = require('@google/genai');
+const { spawn } = require('child_process');
 require('dotenv').config();
 
 const app = express();
@@ -112,15 +113,23 @@ function hasMongoUri() {
 // ⚡ Bolt: Global MongoDB Connection Pooling
 let globalMongoClient = null;
 let globalMongoDb = null;
+let isMongoActive = false;
 if (hasMongoUri()) {
   console.log("🟢 [MongoDB Atlas] URI detected. All requests will use MongoDB Atlas.");
-  globalMongoClient = new MongoClient(mongoUri);
-  // Assign db synchronously without awaiting connect() to enable node driver buffering
-  globalMongoDb = globalMongoClient.db('engram_atlas');
-  // ⚡ Bolt: Add database index on frequently queried userId field
-  globalMongoDb.collection('engrams').createIndex({ userId: 1 }).catch(err => {
-    console.error("⚠️ [MongoDB Atlas] Failed to create index on userId:", err.message);
-  });
+  try {
+    globalMongoClient = new MongoClient(mongoUri);
+    globalMongoDb = globalMongoClient.db('engram_atlas');
+    isMongoActive = true;
+    
+    // ⚡ Bolt: Add database index on frequently queried userId field
+    globalMongoDb.collection('engrams').createIndex({ userId: 1 }).catch(err => {
+      console.error("⚠️ [MongoDB Atlas] Failed to create index on userId:", err.message);
+      isMongoActive = false;
+    });
+  } catch (initErr) {
+    console.error("⚠️ [MongoDB Atlas] Initialization failed:", initErr.message);
+    isMongoActive = false;
+  }
 } else {
   console.warn("⚠️ [MongoDB Atlas] No URI configured. Using in-memory mock fallback.");
 }
@@ -370,6 +379,47 @@ Please explain the context or resonant meaning (reason of connection) between th
     : `The structural design approach of accepting material imperfection/warp completely resonates with the DMR technique of controlling friction and airflow through the philosophy of boundary limit.`;
 }
 
+// Python Agent Builder (ADK) caller helper
+function callAgentBuilder(userInput, mode, lang, systemInstruction, apiKey) {
+  return new Promise((resolve) => {
+    const pythonProcess = spawn('python', ['agent.py']);
+    let outputData = '';
+    let errorData = '';
+
+    pythonProcess.stdout.on('data', (data) => {
+      outputData += data.toString();
+    });
+
+    pythonProcess.stderr.on('data', (data) => {
+      errorData += data.toString();
+    });
+
+    pythonProcess.on('close', (code) => {
+      if (code !== 0) {
+        console.error(`❌ Agent Builder process exited with code ${code}. Error: ${errorData}`);
+        resolve("");
+      } else {
+        try {
+          const parsed = JSON.parse(outputData.trim());
+          resolve(parsed.response || "");
+        } catch (e) {
+          console.error("❌ Failed to parse Agent Builder JSON output:", e.message);
+          resolve("");
+        }
+      }
+    });
+
+    pythonProcess.stdin.write(JSON.stringify({
+      userInput,
+      mode,
+      lang,
+      systemInstruction,
+      apiKey
+    }));
+    pythonProcess.stdin.end();
+  });
+}
+
 const https = require('https');
 const http = require('http');
 const dns = require('dns');
@@ -539,14 +589,8 @@ async function generateUrlSummaryNoise(linkUrl, currentLang, apiKey) {
 
   if (apiKey && apiKey !== 'your_gemini_api_key_here') {
     try {
-      const ai = new GoogleGenAI({ apiKey });
-      const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-      const response = await ai.models.generateContent({
-        model: model,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: { systemInstruction: systemInstruction, temperature: 0.7 }
-      });
-      return response.text.trim();
+      const response = await callAgentBuilder(prompt, "send_noise", currentLang, systemInstruction, apiKey);
+      if (response) return response.trim();
     } catch (err) {
       console.warn("⚠️ [Gemini URL Summarization API Error] Fallback default used:", err.message);
     }
@@ -579,32 +623,8 @@ async function generateMultimodalNoise(attachment, currentLang, apiKey) {
 
   if (apiKey && apiKey !== 'your_gemini_api_key_here') {
     try {
-      const ai = new GoogleGenAI({ apiKey });
-      const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-      
-      const contents = [
-        {
-          role: 'user',
-          parts: [
-            {
-              inlineData: {
-                data: attachment.data,
-                mimeType: attachment.mimeType
-              }
-            },
-            {
-              text: prompt
-            }
-          ]
-        }
-      ];
-
-      const response = await ai.models.generateContent({
-        model: model,
-        contents: contents,
-        config: { systemInstruction: systemInstruction, temperature: 0.7 }
-      });
-      return response.text.trim();
+      const response = await callAgentBuilder(prompt, "send_noise", currentLang, systemInstruction, apiKey, attachment);
+      if (response) return response.trim();
     } catch (err) {
       console.warn("⚠️ [Gemini Multimodal API Error] Fallback default used:", err.message);
     }
@@ -669,7 +689,7 @@ app.post('/api/sendNoise', authMiddleware, async (req, res) => {
     let useMongo = false;
     let targetId = null;
 
-    if (hasMongoUri()) {
+    if (isMongoActive) {
       try {
         const db = globalMongoDb;
         const engramsCollection = db.collection('engrams');
@@ -722,8 +742,9 @@ app.post('/api/sendNoise', authMiddleware, async (req, res) => {
           console.log(`🗑️ [MongoDB] Autonomously forgotten engram: ${targetId}. Success: ${deleteRes.deletedCount > 0}. Cleared references: ${updateRes.modifiedCount}`);
           useMongo = true;
         }
-      } finally {
-        // ⚡ Bolt: Removed dbClient.close() to keep the connection open for pooling
+      } catch (dbErr) {
+        console.warn("⚠️ [MongoDB Forget Dialogue Error] Falling back to mock:", dbErr.message);
+        isMongoActive = false;
       }
     }
 
@@ -774,18 +795,13 @@ app.post('/api/sendNoise', authMiddleware, async (req, res) => {
       let cognitiveResponse = "";
       if (apiKey && apiKey !== 'your_gemini_api_key_here') {
         try {
-          const ai = new GoogleGenAI({ apiKey });
-          const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-          const prompt = currentLang === 'ja'
-            ? `ユーザーからの指示: "${userInput}"\n\n削除対象となった思考テキスト: "${targetEngram.content}"\n\nこの思考ノイズを特定して完全に忘却し、記憶から消去して関係性の代謝（Metabolism）をクリーンアップしたことを、極めて優美で知的、かつコグニティブな文脈（『記憶の海へ還元しました』等）を用いて、日本語で報告してください。余計な挨拶や前置きは省いて結果とコグニティブな意味のみを返してください。`
-            : `User Instruction: "${userInput}"\n\nForgotten thought text: "${targetEngram.content}"\n\nPlease report that you have autonomously identified and completely forgotten this engram, clearing it from the memory network and metabolising (cleaning up) its associations gracefully. Use a cognitive, poetic tone in English.`;
-
-          const response = await ai.models.generateContent({
-            model: model,
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            config: { systemInstruction: systemInstruction, temperature: 0.7 }
-          });
-          cognitiveResponse = response.text.trim();
+          cognitiveResponse = await callAgentBuilder(
+            `ユーザーからの指示: "${userInput}"\n\n削除対象となった思考テキスト: "${targetEngram.content}"`,
+            "forget",
+            currentLang,
+            systemInstruction,
+            apiKey
+          );
         } catch (aiErr) {
           console.error("❌ [Gemini Error on Autonomous Forget] Fallback response applied:", aiErr.message);
         }
@@ -1102,9 +1118,6 @@ app.post('/api/sendNoise', authMiddleware, async (req, res) => {
 
   if (apiKey && apiKey !== 'your_gemini_api_key_here') {
     try {
-      const ai = new GoogleGenAI({ apiKey });
-      const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-
       const langDirective = currentLang === 'ja'
         ? `IMPORTANT: 必ず日本語で回答してください。
 レスポンスは以下の構造に従って、マークダウン形式で出力してください：
@@ -1149,20 +1162,13 @@ All debug/system logs, vector similarity scores, target IDs, and reasoning must 
 
 * If there are duplicate/highly similar nodes (similarity score >= 0.90), group/merge them into a single "memory cluster" in your explanation instead of listing them one by one.`;
 
-      const response = await ai.models.generateContent({
-        model: model,
-        contents: [
-          { 
-            role: 'user', 
-            parts: [{ 
-              text: `Processed Input: "${processedInputText}"\n\nThis noise was saved (ID: ${dbResultId}). Connections made: ${JSON.stringify(matchedRelations)}\n\n${langDirective}` 
-            }] 
-          },
-        ],
-        config: { systemInstruction: systemInstruction, temperature: 0.7 }
-      });
-
-      agentResponse = response.text;
+      agentResponse = await callAgentBuilder(
+        `Processed Input: "${processedInputText}"\n\nThis noise was saved (ID: ${dbResultId}). Connections made: ${JSON.stringify(matchedRelations)}\n\n${langDirective}`,
+        "send_noise",
+        currentLang,
+        systemInstruction,
+        apiKey
+      );
     } catch (aiErr) {
       console.error("❌ [Gemini Error] Fallback response applied:", aiErr.message);
     }
@@ -1284,65 +1290,68 @@ app.get('/api/getEngram', authMiddleware, async (req, res) => {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: "ID is required" });
 
-  const mongoUri = process.env.MONGODB_URI;
-
-  try {
-    if (hasMongoUri()) {
+  let useMongo = false;
+  if (isMongoActive) {
+    try {
+      const db = globalMongoDb;
+      const engramsCollection = db.collection('engrams');
+      
+      let objId;
       try {
-        const db = globalMongoDb;
-        const engramsCollection = db.collection('engrams');
-        
-        let objId;
-        try {
-          objId = new ObjectId(id);
-        } catch (e) {
-          return res.status(400).json({ error: "Invalid ObjectId format" });
-        }
-        
-        const engram = await engramsCollection.findOne({ _id: objId, userId: req.userId });
-        if (!engram) {
-          return res.status(404).json({ error: "Engram not found" });
-        }
-
-        // Resolving to_engram_content for related_links to assist client-side AI exports
-        if (engram.related_links && engram.related_links.length > 0) {
-          const resolvedLinks = [];
-
-          // ⚡ Bolt: Fix N+1 query problem by batching fetching related contents
-          const targetIds = engram.related_links.map(link => {
-            try {
-              return new ObjectId(link.to_engram_id);
-            } catch (e) {
-              return null;
-            }
-          }).filter(id => id !== null);
-
-          let targetDocsMap = {};
-          if (targetIds.length > 0) {
-            const targetDocs = await engramsCollection.find(
-              { _id: { $in: targetIds } },
-              { projection: { content: 1 } }
-            ).toArray();
-
-            targetDocs.forEach(doc => {
-              targetDocsMap[doc._id.toString()] = doc.content;
-            });
-          }
-
-          for (const link of engram.related_links) {
-            resolvedLinks.push({
-              ...link,
-              to_engram_content: targetDocsMap[link.to_engram_id] || ""
-            });
-          }
-          engram.related_links = resolvedLinks;
-        }
-
-        return res.json(engram);
-      } finally {
-        // ⚡ Bolt: Removed dbClient.close() to keep the connection open for pooling
+        objId = new ObjectId(id);
+      } catch (e) {
+        return res.status(400).json({ error: "Invalid ObjectId format" });
       }
-    } else {
+      
+      const engram = await engramsCollection.findOne({ _id: objId, userId: req.userId });
+      if (!engram) {
+        return res.status(404).json({ error: "Engram not found" });
+      }
+
+      // Resolving to_engram_content for related_links to assist client-side AI exports
+      if (engram.related_links && engram.related_links.length > 0) {
+        const resolvedLinks = [];
+
+        // ⚡ Bolt: Fix N+1 query problem by batching fetching related contents
+        const targetIds = engram.related_links.map(link => {
+          try {
+            return new ObjectId(link.to_engram_id);
+          } catch (e) {
+            return null;
+          }
+        }).filter(id => id !== null);
+
+        let targetDocsMap = {};
+        if (targetIds.length > 0) {
+          const targetDocs = await engramsCollection.find(
+            { _id: { $in: targetIds } },
+            { projection: { content: 1 } }
+          ).toArray();
+
+          targetDocs.forEach(doc => {
+            targetDocsMap[doc._id.toString()] = doc.content;
+          });
+        }
+
+        for (const link of engram.related_links) {
+          resolvedLinks.push({
+            ...link,
+            to_engram_content: targetDocsMap[link.to_engram_id] || ""
+          });
+        }
+        engram.related_links = resolvedLinks;
+      }
+
+      useMongo = true;
+      return res.json(engram);
+    } catch (dbErr) {
+      console.warn("⚠️ [MongoDB Atlas Get Error] Falling back to mock:", dbErr.message);
+      isMongoActive = false;
+    }
+  }
+
+  if (!useMongo) {
+    try {
       const engram = mockEngrams.find(e => e._id === id && e.userId === req.userId);
       if (!engram) {
         return res.status(404).json({ error: "Engram not found" });
@@ -1360,9 +1369,9 @@ app.get('/api/getEngram', authMiddleware, async (req, res) => {
       }
 
       return res.json(engram);
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
     }
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
   }
 });
 
@@ -1370,37 +1379,41 @@ app.post('/api/forgetEngram', authMiddleware, async (req, res) => {
   const { db_id } = req.body;
   if (!db_id) return res.status(400).json({ error: "db_id is required" });
 
-  const mongoUri = process.env.MONGODB_URI;
   console.log(`🧹 [Forget Request] ID: ${db_id}`);
 
-  try {
-    if (hasMongoUri()) {
+  let useMongo = false;
+  if (isMongoActive) {
+    try {
+      const db = globalMongoDb;
+      const engramsCollection = db.collection('engrams');
+      
+      let objId;
       try {
-        const db = globalMongoDb;
-        const engramsCollection = db.collection('engrams');
-        
-        let objId;
-        try {
-          objId = new ObjectId(db_id);
-        } catch (e) {
-          return res.status(400).json({ error: "Invalid ObjectId format" });
-        }
-
-        // 1. 指定ドキュメントの削除
-        const deleteRes = await engramsCollection.deleteOne({ _id: objId, userId: req.userId });
-        
-        // 2. 参照のちぎり取り（他のすべての related_links から db_id への参照を pull する）
-        const updateRes = await engramsCollection.updateMany(
-          { userId: req.userId },
-          { $pull: { related_links: { to_engram_id: db_id.toString() } } }
-        );
-
-        console.log(`🗑️ [MongoDB] Deleted engram. Success: ${deleteRes.deletedCount > 0}. Cleared references: ${updateRes.modifiedCount}`);
-        return res.json({ success: true, message: "Engram forgotten and relationships metabolised" });
-      } finally {
-        // ⚡ Bolt: Removed dbClient.close() to keep the connection open for pooling
+        objId = new ObjectId(db_id);
+      } catch (e) {
+        return res.status(400).json({ error: "Invalid ObjectId format" });
       }
-    } else {
+
+      // 1. 指定ドキュメントの削除
+      const deleteRes = await engramsCollection.deleteOne({ _id: objId, userId: req.userId });
+      
+      // 2. 参照のちぎり取り（他のすべての related_links から db_id への参照を pull する）
+      const updateRes = await engramsCollection.updateMany(
+        { userId: req.userId },
+        { $pull: { related_links: { to_engram_id: db_id.toString() } } }
+      );
+
+      console.log(`🗑️ [MongoDB] Deleted engram. Success: ${deleteRes.deletedCount > 0}. Cleared references: ${updateRes.modifiedCount}`);
+      useMongo = true;
+      return res.json({ success: true, message: "Engram forgotten and relationships metabolised" });
+    } catch (dbErr) {
+      console.warn("⚠️ [MongoDB Atlas Forget Error] Falling back to mock:", dbErr.message);
+      isMongoActive = false;
+    }
+  }
+
+  if (!useMongo) {
+    try {
       // Mock DB
       const exists = mockEngrams.some(e => e._id === db_id && e.userId === req.userId);
       mockEngrams = mockEngrams.filter(e => !(e._id === db_id && e.userId === req.userId));
@@ -1414,10 +1427,10 @@ app.post('/api/forgetEngram', authMiddleware, async (req, res) => {
       
       console.log(`🗑️ [Mock DB] Deleted engram ID: ${db_id}. Success: ${exists}.`);
       return res.json({ success: true, message: "Mock engram forgotten and relationships metabolised" });
+    } catch (err) {
+      console.error(`❌ [Forget Error]:`, err.message);
+      return res.status(500).json({ error: err.message });
     }
-  } catch (err) {
-    console.error(`❌ [Forget Error]:`, err.message);
-    return res.status(500).json({ error: err.message });
   }
 });
 
@@ -1435,7 +1448,8 @@ app.post('/api/updateEngram', authMiddleware, async (req, res) => {
 
   console.log(`📝 [Update/Refine Request] ID: ${db_id}`);
 
-  // 1. メディア・リンクの処理（sendNoise と同様）
+  try {
+    // 1. メディア・リンクの処理（sendNoise と同様）
   let translatedNoise = "";
   let inputType = "text";
   let detailTags = ["liftoff", "day3", currentLang, "refined"];
@@ -1461,185 +1475,182 @@ app.post('/api/updateEngram', authMiddleware, async (req, res) => {
   // 2. 新しいベクトルの生成
   const embedding = await getEmbedding(processedInputText, apiKey);
 
-  try {
-    if (hasMongoUri()) {
+  let useMongo = false;
+  let matchedRelations = [];
+
+  if (isMongoActive) {
+    try {
+      const db = globalMongoDb;
+      const engramsCollection = db.collection('engrams');
+      
+      let objId;
       try {
-        const db = globalMongoDb;
-        const engramsCollection = db.collection('engrams');
+        objId = new ObjectId(db_id);
+      } catch (e) {
+        return res.status(400).json({ error: "Invalid ObjectId format" });
+      }
+
+      // a. 相手ノードからの古い参照の完全クリーンアップ（この db_id への参照を pull する）
+      await engramsCollection.updateMany(
+        { userId: req.userId },
+        { $pull: { related_links: { to_engram_id: db_id.toString() } } }
+      );
+
+      // b. 自身の更新（related_links を一旦空にする）
+      const updateDoc = {
+        $set: {
+          content: processedInputText,
+          raw_input_type: inputType,
+          related_links: [], // 一度リセット
+          'metadata.linkUrl': linkUrl || null,
+          'metadata.attachment': attachment ? { name: attachment.name, mimeType: attachment.mimeType } : null,
+          vector_embeddings: embedding
+        },
+        $push: {
+          evolution_history: {
+            timestamp: new Date(),
+            action: "refine",
+            comment: `Engram refined and re-metabolized (Language: ${currentLang})`
+          }
+        }
+      };
+
+      // Only update if it belongs to current user
+      const updateResult = await engramsCollection.updateOne({ _id: objId, userId: req.userId }, updateDoc);
+      if (updateResult.matchedCount === 0) {
+        return res.status(403).json({ error: "Access denied or engram not found" });
+      }
+
+      // c. 新しい類似性に基づく双方向リンクの再構築
+      // ⚡ Bolt: Optimize memory scan by projecting only required fields to avoid over-fetching large documents
+      const pastEngrams = await engramsCollection.find(
+        { _id: { $ne: objId }, userId: req.userId, vector_embeddings: { $exists: true } },
+        { projection: { _id: 1, vector_embeddings: 1, content: 1 } }
+      ).toArray();
+
+      const similarityThreshold = 0.55;
+      const candidates = [];
+
+      for (const past of pastEngrams) {
+        const score = cosineSimilarity(embedding, past.vector_embeddings);
+        if (score >= similarityThreshold) {
+          candidates.push({ past, score });
+        }
+      }
+
+      // Sort by similarity score descending and limit to top 5
+      candidates.sort((a, b) => b.score - a.score);
+      const topCandidates = candidates.slice(0, 5);
+
+      // ⚡ Bolt: Execute AI requests concurrently for /api/updateEngram
+      const reasonPromises = topCandidates.map(candidate =>
+        generateReasonOfConnection(userInput, candidate.past.content, currentLang, apiKey)
+          .then(reason => ({ candidate, reason }))
+      );
+      const candidatesWithReasons = await Promise.all(reasonPromises);
+
+      const bulkOperations = [];
+
+      for (const { candidate, reason } of candidatesWithReasons) {
+        const { past, score } = candidate;
         
-        let objId;
-        try {
-          objId = new ObjectId(db_id);
-        } catch (e) {
-          return res.status(400).json({ error: "Invalid ObjectId format" });
-        }
-
-        // a. 相手ノードからの古い参照の完全クリーンアップ（この db_id への参照を pull する）
-        await engramsCollection.updateMany(
-          { userId: req.userId },
-          { $pull: { related_links: { to_engram_id: db_id.toString() } } }
-        );
-
-        // b. 自身の更新（related_links を一旦空にする）
-        const updateDoc = {
-          $set: {
-            content: processedInputText,
-            raw_input_type: inputType,
-            related_links: [], // 一度リセット
-            'metadata.linkUrl': linkUrl || null,
-            'metadata.attachment': attachment ? { name: attachment.name, mimeType: attachment.mimeType } : null,
-            vector_embeddings: embedding
-          },
-          $push: {
-            evolution_history: {
-              timestamp: new Date(),
-              action: "refine",
-              comment: `Engram refined and re-metabolized (Language: ${currentLang})`
-            }
-          }
+        const newLinkForCurrent = {
+          to_engram_id: past._id.toString(),
+          strength: score,
+          reason_of_connection: reason
         };
+        matchedRelations.push(newLinkForCurrent);
 
-        // Only update if it belongs to current user
-        const updateResult = await engramsCollection.updateOne({ _id: objId, userId: req.userId }, updateDoc);
-        if (updateResult.matchedCount === 0) {
-          return res.status(403).json({ error: "Access denied or engram not found" });
-        }
-
-        // c. 新しい類似性に基づく双方向リンクの再構築
-        // ⚡ Bolt: Optimize memory scan by projecting only required fields to avoid over-fetching large documents
-        const pastEngrams = await engramsCollection.find(
-          { _id: { $ne: objId }, userId: req.userId, vector_embeddings: { $exists: true } },
-          { projection: { _id: 1, vector_embeddings: 1, content: 1 } }
-        ).toArray();
-
-        const similarityThreshold = 0.55;
-        const matchedRelations = [];
-        const candidates = [];
-
-        for (const past of pastEngrams) {
-          const score = cosineSimilarity(embedding, past.vector_embeddings);
-          if (score >= similarityThreshold) {
-            candidates.push({ past, score });
-          }
-        }
-
-        // Sort by similarity score descending and limit to top 5
-        candidates.sort((a, b) => b.score - a.score);
-        const topCandidates = candidates.slice(0, 5);
-
-        // ⚡ Bolt: Execute AI requests concurrently for /api/updateEngram
-        const reasonPromises = topCandidates.map(candidate =>
-          generateReasonOfConnection(userInput, candidate.past.content, currentLang, apiKey)
-            .then(reason => ({ candidate, reason }))
-        );
-        const candidatesWithReasons = await Promise.all(reasonPromises);
-
-        const bulkOperations = [];
-
-        for (const { candidate, reason } of candidatesWithReasons) {
-          const { past, score } = candidate;
-          
-          const newLinkForCurrent = {
-            to_engram_id: past._id.toString(),
-            strength: score,
-            reason_of_connection: reason
-          };
-          matchedRelations.push(newLinkForCurrent);
-
-          // 自分側に追加
-          bulkOperations.push({
-            updateOne: {
-              filter: { _id: objId, userId: req.userId },
-              update: {
-                $push: {
-                  related_links: newLinkForCurrent,
-                  evolution_history: {
-                    timestamp: new Date(),
-                    action: "self_organize_link",
-                    comment: `Connected to ${past._id.toString()} during refine with similarity ${score.toFixed(2)}`
-                  }
+        // 自分側に追加
+        bulkOperations.push({
+          updateOne: {
+            filter: { _id: objId, userId: req.userId },
+            update: {
+              $push: {
+                related_links: newLinkForCurrent,
+                evolution_history: {
+                  timestamp: new Date(),
+                  action: "self_organize_link",
+                  comment: `Connected to ${past._id.toString()} during refine with similarity ${score.toFixed(2)}`
                 }
               }
             }
-          });
-
-          // 相手側にも追加 (Past doc)
-          const newLinkForPast = {
-            to_engram_id: db_id,
-            strength: score,
-            reason_of_connection: reason
-          };
-          bulkOperations.push({
-            updateOne: {
-              filter: { _id: past._id, userId: req.userId },
-              update: {
-                $push: {
-                  related_links: newLinkForPast,
-                  evolution_history: {
-                    timestamp: new Date(),
-                    action: "self_organize_link",
-                    comment: `Connected to refined ${db_id} with similarity ${score.toFixed(2)}`
-                  }
-                }
-              }
-            }
-          });
-        }
-
-        // ⚡ Bolt: Batch database writes using MongoDB's bulkWrite()
-        if (bulkOperations.length > 0) {
-          await engramsCollection.bulkWrite(bulkOperations);
-        }
-
-        // d. 思考プロセスの生成（sendNoise と同様）
-        let agentResponse = "";
-        if (apiKey && apiKey !== 'your_gemini_api_key_here') {
-          try {
-            const ai = new GoogleGenAI({ apiKey });
-            const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-            const langDirective = currentLang === 'ja'
-              ? "IMPORTANT: Respond in Japanese. Explain your plan, the vector embedding generation, and how you refined and re-linked with past nodes if any."
-              : "IMPORTANT: Respond in English. Explain your plan, the vector embedding generation, and how you refined and re-linked with past nodes if any.";
-
-            const response = await ai.models.generateContent({
-              model: model,
-              contents: [
-                { 
-                  role: 'user', 
-                  parts: [{ 
-                    text: `User Input: "${userInput}"\n\nThis noise was refined and updated (ID: ${db_id}). Connections re-made: ${JSON.stringify(matchedRelations)}\n\nReport your thinking process and how you dynamically weaved these connections.\n\n${langDirective}` 
-                  }] 
-                },
-              ],
-              config: { systemInstruction: systemInstruction, temperature: 0.7 }
-            });
-            agentResponse = response.text;
-          } catch (aiErr) {
-            console.error("⚠️ Gemini Error on Refine response:", aiErr.message);
-          }
-        }
-
-        if (!agentResponse) {
-          agentResponse = currentLang === 'ja'
-            ? `### EngramAtlas-Core 自己組織化プロセス（推敲完了）\n\n1. **推敲による代謝**: エングラムID \`${db_id}\` の内容が更新され、新ベクトルが生成されました。\n2. **再結線**: 既存の記憶との類似度を再計算し、双方向リンクを再構築しました。\n\n--- \n> **ステータス**: GREEN (推敲および動的平衡の再調整が成功しました)`
-            : `### EngramAtlas-Core Self-Organization Process (Refined)\n\n1. **Refinement Metabolism**: Updated content for ID \`${db_id}\` and generated new vector.\n2. **Re-connection**: Recalculated similarities and rebuilt bi-directional links.\n\n--- \n> **Status**: GREEN (Refinement and re-equilibrium complete)`;
-        }
-
-        return res.json({
-          response: agentResponse,
-          db_id: db_id,
-          mode: "production",
-          relations: matchedRelations,
-          metadata: {
-            model: embedModel,
-            entropy: 0.4,
-            scope: "PERSONAL"
           }
         });
-      } finally {
-        // ⚡ Bolt: Removed dbClient.close() to keep the connection open for pooling
+
+        // 相手側にも追加 (Past doc)
+        const newLinkForPast = {
+          to_engram_id: db_id,
+          strength: score,
+          reason_of_connection: reason
+        };
+        bulkOperations.push({
+          updateOne: {
+            filter: { _id: past._id, userId: req.userId },
+            update: {
+              $push: {
+                related_links: newLinkForPast,
+                evolution_history: {
+                  timestamp: new Date(),
+                  action: "self_organize_link",
+                  comment: `Connected to refined ${db_id} with similarity ${score.toFixed(2)}`
+                }
+              }
+            }
+          }
+        });
       }
-    } else {
+
+      // ⚡ Bolt: Batch database writes using MongoDB's bulkWrite()
+      if (bulkOperations.length > 0) {
+        await engramsCollection.bulkWrite(bulkOperations);
+      }
+
+      // d. 思考プロセスの生成（sendNoise と同様）
+      let agentResponse = "";
+      if (apiKey && apiKey !== 'your_gemini_api_key_here') {
+        try {
+          const langDirective = currentLang === 'ja'
+            ? "IMPORTANT: Respond in Japanese. Explain your plan, the vector embedding generation, and how you refined and re-linked with past nodes if any."
+            : "IMPORTANT: Respond in English. Explain your plan, the vector embedding generation, and how you refined and re-linked with past nodes if any.";
+
+          agentResponse = await callAgentBuilder(
+            `User Input: "${userInput}"\n\nThis noise was refined and updated (ID: ${db_id}). Connections re-made: ${JSON.stringify(matchedRelations)}\n\nReport your thinking process and how you dynamically weaved these connections.\n\n${langDirective}`,
+            "send_noise",
+            currentLang,
+            systemInstruction,
+            apiKey
+          );
+        } catch (aiErr) {
+          console.error("⚠️ Gemini Error on Refine response:", aiErr.message);
+        }
+      }
+
+      if (!agentResponse) {
+        agentResponse = currentLang === 'ja'
+          ? `### EngramAtlas-Core 自己組織化プロセス（推敲完了）\n\n1. **推敲による代謝**: エングラムID \`${db_id}\` の内容が更新され、新ベクトルが生成されました。\n2. **再結線**: 既存の記憶との類似度を再計算し、双方向リンクを再構築しました。\n\n--- \n> **ステータス**: GREEN (推敲および動的平衡の再調整が成功しました)`
+          : `### EngramAtlas-Core Self-Organization Process (Refined)\n\n1. **Refinement Metabolism**: Updated content for ID \`${db_id}\` and generated new vector.\n2. **Re-connection**: Recalculated similarities and rebuilt bi-directional links.\n\n--- \n> **Status**: GREEN (Refinement and re-equilibrium complete)`;
+      }
+
+      useMongo = true;
+      return res.json({
+        response: agentResponse,
+        db_id: db_id,
+        mode: "production",
+        relations: matchedRelations,
+        metadata: {
+          model: embedModel,
+          entropy: 0.4,
+          scope: "PERSONAL"
+        }
+      });
+    } catch (dbErr) {
+      console.warn("⚠️ [MongoDB Atlas Refine Error] Fallback to in-memory mode:", dbErr.message);
+      isMongoActive = false;
+    }
+  }
+
+  if (!useMongo) {
       // Mock DB
       const engram = mockEngrams.find(e => e._id === db_id && e.userId === req.userId);
       if (!engram) return res.status(404).json({ error: "Mock engram not found" });
@@ -1743,7 +1754,6 @@ app.get('/api/search', authMiddleware, async (req, res) => {
   const { query, lang } = req.query;
   const currentLang = lang || 'en';
   const apiKey = process.env.GEMINI_API_KEY;
-  const mongoUri = process.env.MONGODB_URI;
 
   if (!query || !query.trim()) {
     return res.status(400).json({ error: "Query is empty" });
@@ -1752,7 +1762,8 @@ app.get('/api/search', authMiddleware, async (req, res) => {
   try {
     const embedding = await getEmbedding(query, apiKey);
 
-    if (hasMongoUri()) {
+    let useMongo = false;
+    if (isMongoActive) {
       try {
         const db = globalMongoDb;
         const engramsCollection = db.collection('engrams');
@@ -1780,6 +1791,7 @@ app.get('/api/search', authMiddleware, async (req, res) => {
 
           if (results && results.length > 0) {
             console.log(`🔍 [MongoDB Atlas Vector Search] Found ${results.length} matches for "${query}"`);
+            useMongo = true;
             return res.json(results);
           }
         } catch (vectorSearchErr) {
@@ -1800,11 +1812,15 @@ app.get('/api/search', authMiddleware, async (req, res) => {
         .sort((a, b) => b.score - a.score)
         .slice(0, 10);
 
+        useMongo = true;
         return res.json(results);
-      } finally {
-        // ⚡ Bolt: Removed dbClient.close() to keep the connection open for pooling
+      } catch (dbErr) {
+        console.warn("⚠️ [MongoDB Search Error] Falling back to mock search:", dbErr.message);
+        isMongoActive = false;
       }
-    } else {
+    }
+
+    if (!useMongo) {
       // Mock DB manual similarity scan
       const results = mockEngrams.filter(e => e.userId === req.userId).map(e => {
         let score = 0;
@@ -1831,18 +1847,23 @@ app.get('/api/search', authMiddleware, async (req, res) => {
 // -------------------------------------------------------
 app.delete('/api/resetDatabase', authMiddleware, async (req, res) => {
   console.log('🗑️ [Reset Database] Request received.');
+  let useMongo = false;
   try {
-    if (hasMongoUri()) {
+    if (isMongoActive) {
       try {
         const db = globalMongoDb;
         const engramsCollection = db.collection('engrams');
         const result = await engramsCollection.deleteMany({ userId: req.userId });
         console.log(`🗑️ [Reset Database] Deleted ${result.deletedCount} engrams from MongoDB Atlas.`);
+        useMongo = true;
         return res.json({ success: true, mode: 'mongodb', deletedCount: result.deletedCount });
-      } finally {
-        // ⚡ Bolt: Removed dbClient.close() to keep the connection open for pooling
+      } catch (dbErr) {
+        console.warn("⚠️ [MongoDB Reset Error] Falling back to mock reset:", dbErr.message);
+        isMongoActive = false;
       }
-    } else {
+    }
+
+    if (!useMongo) {
       const count = mockEngrams.filter(e => e.userId === req.userId).length;
       mockEngrams = mockEngrams.filter(e => e.userId !== req.userId);
       console.log(`🗑️ [Reset Database] Cleared ${count} engrams from mock memory.`);
@@ -1855,11 +1876,9 @@ app.delete('/api/resetDatabase', authMiddleware, async (req, res) => {
 });
 
 app.get('/api/getAllEngrams', authMiddleware, async (req, res) => {
-
-  const mongoUri = process.env.MONGODB_URI;
-
+  let useMongo = false;
   try {
-    if (hasMongoUri()) {
+    if (isMongoActive) {
       try {
         const db = globalMongoDb;
         const engramsCollection = db.collection('engrams');
@@ -1870,11 +1889,15 @@ app.get('/api/getAllEngrams', authMiddleware, async (req, res) => {
           { projection: { vector_embeddings: 0 } }
         ).toArray();
         
+        useMongo = true;
         return res.json(engrams);
-      } finally {
-        // ⚡ Bolt: Removed dbClient.close() to keep the connection open for pooling
+      } catch (dbErr) {
+        console.warn("⚠️ [MongoDB getAllEngrams Error] Falling back to mock:", dbErr.message);
+        isMongoActive = false;
       }
-    } else {
+    }
+
+    if (!useMongo) {
       // Mock DB - ベクトルを除外してコピー
       const engrams = mockEngrams.filter(e => e.userId === req.userId).map(e => {
         const { vector_embeddings, ...rest } = e;
