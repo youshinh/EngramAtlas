@@ -1798,18 +1798,35 @@ app.get('/api/search', authMiddleware, async (req, res) => {
         }
 
         // Fallback: local memory scan over Mongo documents
-        const allEngrams = await engramsCollection.find({ userId: req.userId }).toArray();
-        const results = allEngrams.map(e => {
+        // ⚡ Bolt: Optimize memory bloat by fetching only _id and embeddings first.
+        const allEngrams = await engramsCollection.find(
+          { userId: req.userId },
+          { projection: { _id: 1, vector_embeddings: 1 } }
+        ).toArray();
+
+        const topMatches = allEngrams.map(e => {
           let score = 0;
           if (e.vector_embeddings) {
             score = cosineSimilarity(embedding, e.vector_embeddings);
           }
-          const { vector_embeddings, ...rest } = e;
-          return { ...rest, score };
+          return { _id: e._id, score };
         })
         .filter(e => e.score >= 0.35)
         .sort((a, b) => b.score - a.score)
         .slice(0, 10);
+
+        const matchIds = topMatches.map(m => m._id);
+        const fullDocs = await engramsCollection.find({ _id: { $in: matchIds } }).toArray();
+
+        // Re-attach scores and sort in the correct order
+        const results = topMatches.map(match => {
+          const doc = fullDocs.find(d => d._id.toString() === match._id.toString());
+          if (doc) {
+            const { vector_embeddings, ...rest } = doc;
+            return { ...rest, score: match.score };
+          }
+          return null;
+        }).filter(d => d !== null);
 
         useMongo = true;
         return res.json(results);
