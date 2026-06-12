@@ -1837,18 +1837,21 @@ app.get('/api/search', authMiddleware, async (req, res) => {
     }
 
     if (!useMongo) {
-      // Mock DB manual similarity scan
+      // ⚡ Bolt: Optimize Mock DB manual similarity scan to avoid expensive object destructuring on all items
       const results = mockEngrams.filter(e => e.userId === req.userId).map(e => {
         let score = 0;
         if (e.vector_embeddings) {
           score = cosineSimilarity(embedding, e.vector_embeddings);
         }
-        const { vector_embeddings, ...rest } = e;
-        return { ...rest, score };
+        return { past: e, score };
       })
       .filter(e => e.score >= 0.35)
       .sort((a, b) => b.score - a.score)
-      .slice(0, 10);
+      .slice(0, 10)
+      .map(item => {
+        const { vector_embeddings, ...rest } = item.past;
+        return { ...rest, score: item.score };
+      });
 
       return res.json(results);
     }
