@@ -1797,19 +1797,34 @@ app.get('/api/search', authMiddleware, async (req, res) => {
           console.warn("⚠️ [MongoDB Atlas Vector Search Failed] Falling back to manual memory scan:", vectorSearchErr.message);
         }
 
-        // Fallback: local memory scan over Mongo documents
-        const allEngrams = await engramsCollection.find({ userId: req.userId }).toArray();
-        const results = allEngrams.map(e => {
+        // ⚡ Bolt: Optimize fallback vector search to avoid O(N) memory bloat.
+        // Use projection to fetch only _id and embeddings for initial scoring,
+        // slice to top 10, then fetch full documents.
+        const allEngrams = await engramsCollection.find(
+          { userId: req.userId },
+          { projection: { _id: 1, vector_embeddings: 1 } }
+        ).toArray();
+
+        const topMatches = allEngrams.map(e => {
           let score = 0;
           if (e.vector_embeddings) {
             score = cosineSimilarity(embedding, e.vector_embeddings);
           }
-          const { vector_embeddings, ...rest } = e;
-          return { ...rest, score };
+          return { _id: e._id, score };
         })
         .filter(e => e.score >= 0.35)
         .sort((a, b) => b.score - a.score)
         .slice(0, 10);
+
+        const topIds = topMatches.map(m => m._id);
+        const fullDocs = await engramsCollection.find({ _id: { $in: topIds } }).toArray();
+
+        const scoreMap = new Map(topMatches.map(m => [m._id.toString(), m.score]));
+
+        const results = fullDocs.map(doc => {
+          const { vector_embeddings, ...rest } = doc;
+          return { ...rest, score: scoreMap.get(doc._id.toString()) };
+        }).sort((a, b) => b.score - a.score);
 
         useMongo = true;
         return res.json(results);
@@ -1820,18 +1835,21 @@ app.get('/api/search', authMiddleware, async (req, res) => {
     }
 
     if (!useMongo) {
-      // Mock DB manual similarity scan
+      // ⚡ Bolt: Optimize Mock DB manual similarity scan to avoid expensive object destructuring on all items
       const results = mockEngrams.filter(e => e.userId === req.userId).map(e => {
         let score = 0;
         if (e.vector_embeddings) {
           score = cosineSimilarity(embedding, e.vector_embeddings);
         }
-        const { vector_embeddings, ...rest } = e;
-        return { ...rest, score };
+        return { past: e, score };
       })
       .filter(e => e.score >= 0.35)
       .sort((a, b) => b.score - a.score)
-      .slice(0, 10);
+      .slice(0, 10)
+      .map(item => {
+        const { vector_embeddings, ...rest } = item.past;
+        return { ...rest, score: item.score };
+      });
 
       return res.json(results);
     }
