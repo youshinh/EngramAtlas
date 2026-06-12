@@ -1797,9 +1797,8 @@ app.get('/api/search', authMiddleware, async (req, res) => {
           console.warn("⚠️ [MongoDB Atlas Vector Search Failed] Falling back to manual memory scan:", vectorSearchErr.message);
         }
 
-        // ⚡ Bolt: Optimize fallback vector search to avoid O(N) memory bloat.
-        // Use projection to fetch only _id and embeddings for initial scoring,
-        // slice to top 10, then fetch full documents.
+        // Fallback: local memory scan over Mongo documents
+        // ⚡ Bolt: Optimize memory bloat by fetching only _id and embeddings first.
         const allEngrams = await engramsCollection.find(
           { userId: req.userId },
           { projection: { _id: 1, vector_embeddings: 1 } }
@@ -1816,15 +1815,18 @@ app.get('/api/search', authMiddleware, async (req, res) => {
         .sort((a, b) => b.score - a.score)
         .slice(0, 10);
 
-        const topIds = topMatches.map(m => m._id);
-        const fullDocs = await engramsCollection.find({ _id: { $in: topIds } }).toArray();
+        const matchIds = topMatches.map(m => m._id);
+        const fullDocs = await engramsCollection.find({ _id: { $in: matchIds } }).toArray();
 
-        const scoreMap = new Map(topMatches.map(m => [m._id.toString(), m.score]));
-
-        const results = fullDocs.map(doc => {
-          const { vector_embeddings, ...rest } = doc;
-          return { ...rest, score: scoreMap.get(doc._id.toString()) };
-        }).sort((a, b) => b.score - a.score);
+        // Re-attach scores and sort in the correct order
+        const results = topMatches.map(match => {
+          const doc = fullDocs.find(d => d._id.toString() === match._id.toString());
+          if (doc) {
+            const { vector_embeddings, ...rest } = doc;
+            return { ...rest, score: match.score };
+          }
+          return null;
+        }).filter(d => d !== null);
 
         useMongo = true;
         return res.json(results);
