@@ -536,7 +536,17 @@ function fetchUrlTitleAndText(targetUrl, redirectCount = 0, visitedUrls = []) {
           });
         }
         let data = '';
-        res.on('data', chunk => { data += chunk; });
+        // ⚡ Bolt: Enforce early stream truncation to prevent unbounded memory bloat and ReDoS
+        const MAX_SIZE = 1024 * 1024; // 1MB
+        res.on('data', chunk => {
+          if (data.length + chunk.length > MAX_SIZE) {
+            data += chunk.slice(0, MAX_SIZE - data.length);
+            res.destroy(); // Early truncation
+            res.emit('end'); // Emit end to ensure the Promise resolves
+            return;
+          }
+          data += chunk;
+        });
         res.on('end', () => {
           const titleMatch = data.match(/<title>([^<]*)<\/title>/i);
           const title = titleMatch ? titleMatch[1].trim() : parsedUrl.hostname;
