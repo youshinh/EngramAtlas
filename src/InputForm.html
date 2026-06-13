@@ -10,6 +10,7 @@
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     <!-- Marked JS for premium Markdown parsing -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
@@ -1847,17 +1848,17 @@
         
         // Render Markdown elegantly using marked.js
         try {
-          document.getElementById('resultContent').innerHTML = marked.parse(responseText);
+          document.getElementById('resultContent').innerHTML = DOMPurify.sanitize(marked.parse(responseText));
         } catch (e) {
           console.error("Markdown rendering error:", e);
-          document.getElementById('resultContent').innerHTML = responseText;
+          document.getElementById('resultContent').innerHTML = DOMPurify.sanitize(responseText);
         }
         
         // Render dynamic metadata signature quietly if available
         const metaContainer = document.getElementById('resultMetadata');
         if (data.metadata) {
           const m = data.metadata;
-          metaContainer.innerHTML = `entropy: ${(m.entropy || 0.5).toFixed(2)} &nbsp;·&nbsp; scope: ${(m.scope || 'PERSONAL').toLowerCase()}`;
+          metaContainer.innerHTML = DOMPurify.sanitize(`entropy: ${(m.entropy || 0.5).toFixed(2)} &nbsp;&middot;&nbsp; scope: ${(m.scope || 'PERSONAL').toLowerCase()}`);
           metaContainer.classList.remove('hidden');
         } else {
           metaContainer.classList.add('hidden');
@@ -3409,7 +3410,7 @@
               const metaContainer = document.getElementById('resultMetadata');
               if (data.metadata) {
                 const m = data.metadata;
-                metaContainer.innerHTML = `entropy: ${(m.entropy_score || 0.5).toFixed(2)} &nbsp;·&nbsp; scope: ${(m.scope || 'PERSONAL').toLowerCase()}`;
+                metaContainer.innerHTML = DOMPurify.sanitize(`entropy: ${(m.entropy_score || 0.5).toFixed(2)} &nbsp;&middot;&nbsp; scope: ${(m.scope || 'PERSONAL').toLowerCase()}`);
                 metaContainer.classList.remove('hidden');
               } else {
                 metaContainer.classList.add('hidden');
@@ -3454,7 +3455,7 @@
         }
 
         html += `<h3 class="text-xs font-semibold tracking-wider mb-3" style="color: var(--text-main); font-family: 'Playfair Display', 'Noto Serif JP', serif;">${label}</h3>`;
-        html += `<div class="markdown-content text-xs leading-relaxed tracking-wide mb-4" style="color: var(--text-main);">${marked.parse(data.content || '')}</div>`;
+        html += `<div class="markdown-content text-xs leading-relaxed tracking-wide mb-4" style="color: var(--text-main);">${DOMPurify.sanitize(marked.parse(data.content || ''))}</div>`;
 
         if (data.related_links && data.related_links.length > 0) {
           html += `<div class="border-t pt-3 mt-2" style="border-color: var(--border-color);">`;
@@ -3464,7 +3465,7 @@
           data.related_links.slice(0, 5).forEach((link) => {
             const shortId = (link.to_engram_id || '').substring(0, 8);
             const similarity = (link.strength || 0).toFixed(2);
-            const context = link.reason_of_connection || '';
+            const context = DOMPurify.sanitize(link.reason_of_connection || '');
             const fullId = link.to_engram_id || '';
             html += `
               <div class="related-node-card group cursor-pointer rounded-xl px-3 py-2 transition-all duration-200 border"
@@ -3490,7 +3491,7 @@
         }
 
         window.__prevEngramData__ = prevData || data;
-        container.innerHTML = html;
+        container.innerHTML = DOMPurify.sanitize(html, { ADD_ATTR: ['onclick'] });
       }
 
       function showEngramDetail(engramId) {
@@ -3539,7 +3540,7 @@
               mapEngine.loadAll();
             } else {
               const contentContainer = document.getElementById('resultContent');
-              contentContainer.innerHTML = `<p class="text-xs italic" style="color: var(--text-sub);">${currentLang === 'ja' ? '一致する記憶が見つかりませんでした。' : 'No matching memory found.'}</p>`;
+              contentContainer.innerHTML = DOMPurify.sanitize(`<p class="text-xs italic" style="color: var(--text-sub);">${currentLang === 'ja' ? '一致する記憶が見つかりませんでした。' : 'No matching memory found.'}</p>`);
               document.getElementById('resultContainer').classList.remove('hidden');
             }
           })
