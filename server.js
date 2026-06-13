@@ -536,8 +536,29 @@ function fetchUrlTitleAndText(targetUrl, redirectCount = 0, visitedUrls = []) {
           });
         }
         let data = '';
-        res.on('data', chunk => { data += chunk; });
+        let destroyed = false;
+
+        res.on('data', chunk => {
+          if (destroyed) return;
+          data += chunk;
+
+          // ⚡ Bolt: Prevent unbounded memory bloat and catastrophic O(N) regex backtracking
+          // by truncating streams early. We only need <title> and 2000 chars of text.
+          if (data.length > 500000) {
+            destroyed = true;
+            res.destroy(); // stop downloading immediately
+
+            processExtractedData();
+          }
+        });
+
         res.on('end', () => {
+          if (!destroyed) {
+             processExtractedData();
+          }
+        });
+
+        function processExtractedData() {
           const titleMatch = data.match(/<title>([^<]*)<\/title>/i);
           const title = titleMatch ? titleMatch[1].trim() : parsedUrl.hostname;
           const cleanText = data
@@ -548,7 +569,7 @@ function fetchUrlTitleAndText(targetUrl, redirectCount = 0, visitedUrls = []) {
             .substring(0, 2000)
             .trim();
           resolve({ title, content: cleanText || "No content extracted" });
-        });
+        }
       });
       
       req.on('error', (err) => {
